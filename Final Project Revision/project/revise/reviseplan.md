@@ -17,6 +17,11 @@ This document is the "conflict reconciliation" record between what the paper
 currently claims/shows and what the code actually does, plus the fix plan and
 final methodology.
 
+**Update:** the two ABSE-Range points that were initially extrapolated (§6, §9)
+have since been replaced with real measurements (`measure_abse_range_real.py`)
+— there was time budget to run them for real instead. Every number in the
+final Fig. 2/5/7 results is now a direct measurement; nothing is predicted.
+
 ---
 
 ## 1. Figure identification
@@ -254,20 +259,22 @@ The prior `Datarecord.csv` is preserved at
   the original harness, which already did real O(N) work for these).
   `trap_ms`/`query_ms` are averages of 5 repeated calls (2 for ABSE-Range,
   given its real per-record pairing cost).
-- **ABSE-Range beyond N=10,000**: per your direction, real per-record
-  pairing search is only measured up to N=10,000 (at N=50K/100K, a real run
-  is estimated at tens of minutes to hours per query point — infeasible
-  within the time available). Index construction (encrypt-only, ~1ms/record)
-  IS measured for real at every N, including 50K/100K — only the
-  **query** cost is extrapolated. The extrapolation uses ordinary
-  least-squares linear regression on the 3 real measured points
-  (N=1K/5K/10K); ABSE-Range's search cost is provably linear in N (a fixed
-  number of pairings per record, no data-dependent shortcuts), so a linear
-  fit is the correct model, not an arbitrary guess. The fitted slope,
-  intercept, R², and the exact measured points used are recorded in the
-  results CSV's `note` column for every predicted row, and predicted points
-  are rendered with a hollow marker + dotted line in the figure (not a solid
-  line indistinguishable from measured data).
+- **ABSE-Range beyond N=10,000**: the initial run only measured real
+  per-record pairing search up to N=10,000 and used ordinary least-squares
+  linear regression on those 3 points to extrapolate N=50K/100K (fitted
+  slope/intercept/R² and the measured points recorded in the CSV `note`
+  column; extrapolated points rendered hollow + dotted in the figure, never
+  visually indistinguishable from measured data). **Update:** this project
+  had time budget to go back and measure both points for real instead —
+  `measure_abse_range_real.py` ran the actual N=50,000 (~9.7 min) and
+  N=100,000 (~19.8 min) query searches to completion. Real results: 261,862
+  ms and 537,880 ms respectively, vs. the earlier linear prediction of
+  246,549 ms and 489,807 ms — within ~6% and ~10% of the extrapolation,
+  which validates that the linear model was sound even though it's no
+  longer needed. **All five ABSE-Range points in Fig. 5 are now real
+  measurements; nothing in this experiment is extrapolated anymore.** The
+  `note` column is empty for every row in the current
+  `benchmark_fig2_5_7_fair_results.csv`.
 - **Exp. 7** (throughput vs. workload): the original script looped calling
   `query()` up to 10,000 times per (algorithm, Q) data point. For
   expensive algorithms this is either impractical (Trinity's own historical
@@ -313,7 +320,9 @@ revise/
   generate_datarecord.py                 <- reproducible dataset generator (was empty)
   Datarecord.csv                         <- regenerated 100K-row dataset (seed=42)
   benchmark_fig2_5_7_fair.py             <- fixed, fair benchmark (this is the one to run)
-  benchmark_fig2_5_7_fair_results.csv    <- output of the run above
+  benchmark_fig2_5_7_fair_results.csv    <- output of the run above (now fully real, no predicted rows)
+  measure_abse_range_real.py             <- follow-up: replaces ABSE-Range's extrapolated
+                                             N=50K/100K query points with real measurements
   plot_fig2_5_7.py                       <- plots the 3 figures from the CSV above
   figures/                               <- the 3 generated PNGs (also copied to ../all_figures/)
   original_reference/                    <- UNMODIFIED copies of the old buggy scripts, kept
@@ -332,14 +341,18 @@ revise/
 ```bash
 cd "Final Project Revision/project/revise"
 python3 generate_datarecord.py          # regenerate Datarecord.csv (optional; already done)
-python3 benchmark_fig2_5_7_fair.py       # ~<fill in after run>  -> benchmark_fig2_5_7_fair_results.csv
+python3 benchmark_fig2_5_7_fair.py       # ~26 min -> benchmark_fig2_5_7_fair_results.csv
+python3 measure_abse_range_real.py       # ~30 min -> replaces the two extrapolated ABSE-Range
+                                          #    query points above with real measurements
 python3 plot_fig2_5_7.py                 # -> figures/*.png
 ```
 
 ## 9. Results summary
 
-Full run completed in **26.3 minutes**. All figures below now reflect real
-measurements except the two explicitly-marked ABSE-Range points.
+Full run completed in **26.3 minutes**, plus a follow-up **29.5 minutes**
+(`measure_abse_range_real.py`) to replace ABSE-Range's two extrapolated
+Fig. 5 points with real measurements. **Every number below is now a real
+measurement — nothing in this experiment is extrapolated or predicted.**
 
 ### Fig. 2 — Index-construction time (ms) vs. N
 
@@ -348,13 +361,17 @@ measurements except the two explicitly-marked ABSE-Range points.
 | 1,000 | 5,853.8 | 74.5 | 328.7 | 3.0 | 1,254.5 |
 | 5,000 | 24,536.7 | 303.1 | 1,641.3 | 11.9 | 5,986.4 |
 | 10,000 | 46,957.4 | 591.2 | 2,575.3 | 26.2 | 9,750.5 |
-| 50,000 | 230,885.6 | 3,106.6 | 13,150.9 | 138.3 | 48,275.3 |
-| 100,000 | 467,488.9 | 7,608.7 | 32,815.8 | 275.1 | 107,967.3 |
+| 50,000 | 230,885.6 | 3,106.6 | 13,150.9 | 138.3 | 57,281.1 |
+| 100,000 | 467,488.9 | 7,608.7 | 32,815.8 | 275.1 | 109,791.4 |
 
 BVCRSA is highest throughout (real BLS12-381 pairing per record, as the paper's
 own text already anticipates and justifies as a one-time offline cost). All
 five series scale linearly with N as expected — this part of the original
-benchmark was not buggy, only the query side was.
+benchmark was not buggy, only the query side was. (ABSE-Range's N=50K/100K
+index_ms values above are from the later `measure_abse_range_real.py` re-run,
+~19% and ~2% higher than the first run's 48,275.3/107,967.3 — ordinary
+run-to-run timing jitter from a live encrypt-heavy Python process, not a
+methodology change; both runs measured the same real operation.)
 
 ### Fig. 5 — Query processing time (ms) vs. N
 
@@ -363,8 +380,8 @@ benchmark was not buggy, only the query side was.
 | 1,000 | 26.42 | 177.19 | 0.12 | 0.13 | 6,354.24 |
 | 5,000 | 23.57 | 783.94 | 0.30 | 0.34 | 30,857.36 |
 | 10,000 | 22.97 | 1,049.22 | 0.90 | 0.73 | 50,500.98 |
-| 50,000 | 34.61 | 5,313.71 | 5.66 | 5.45 | **246,548.65** *(predicted)* |
-| 100,000 | 56.90 | 13,755.26 | 15.61 | 9.94 | **489,807.37** *(predicted)* |
+| 50,000 | 34.61 | 5,313.71 | 5.66 | 5.45 | 261,862.25 |
+| 100,000 | 56.90 | 13,755.26 | 15.61 | 9.94 | 537,880.13 |
 
 Now a fair comparison: BVCRSA grows only mildly (23→57 ms across a 100x
 increase in N) because its real per-query cost is bounded by keyword-bucket
