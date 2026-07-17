@@ -1,0 +1,107 @@
+  [config] ABSE backend in use: abse_fast (BLS12-381 / py_arkworks_bls12381)
+           (paper's Experimental Setup text states BN128 via py_ecc; see
+            reviseplan.md for the disclosure/decision on this discrepancy)
+
+======================================================================
+  BVCRSA FAIR Benchmark — Experiments 2, 5 & 7 (bug-fixed)
+  N values: 1K / 5K / 10K / 50K / 100K
+======================================================================
+
+  -- Loading 1,000 records --
+    BVCRSA       | building index for N=1,000...  ⛓️  Blockchain Edge Node initialized — genesis: 00eaaf0a286d7329...
+     5853.8ms | trap=   1.193ms | qry=  26.415ms | match=14
+         [Progress 1/25 | elapsed=0.1min | ETA=2.4min]
+    Trinity      | building index for N=1,000...       74.5ms | trap=1705.249ms | qry= 177.190ms | match=1000
+         [Progress 2/25 | elapsed=0.3min | ETA=3.0min]
+    VC-KASE      | building index for N=1,000...      328.7ms | trap=   0.245ms | qry=   0.119ms | match=11
+         [Progress 3/25 | elapsed=0.3min | ETA=1.9min]
+    ABSE-Range   | building index for N=1,000...     1254.5ms | trap=   4.538ms | qry=6354.239ms | match=1000
+         [Progress 4/25 | elapsed=0.5min | ETA=2.6min]
+    Latt-IBEKS   | building index for N=1,000...        3.0ms | trap=   0.057ms | qry=   0.125ms | match=11
+         [Progress 5/25 | elapsed=0.5min | ETA=2.0min]
+
+  -- Loading 5,000 records --
+    BVCRSA       | building index for N=5,000...  ⛓️  Blockchain Edge Node initialized — genesis: 00b1acfba701eee5...
+    24536.7ms | trap=   1.062ms | qry=  23.568ms | match=79
+         [Progress 6/25 | elapsed=0.9min | ETA=2.9min]
+    Trinity      | building index for N=5,000...      303.1ms | trap=1384.152ms | qry= 783.943ms | match=5000
+         [Progress 7/25 | elapsed=1.1min | ETA=2.8min]
+    VC-KASE      | building index for N=5,000...     1641.3ms | trap=   0.251ms | qry=   0.300ms | match=62
+         [Progress 8/25 | elapsed=1.1min | ETA=2.4min]
+    ABSE-Range   | building index for N=5,000...     5986.4ms | trap=   5.375ms | qry=30857.358ms | match=5000
+         [Progress 9/25 | elapsed=2.3min | ETA=4.0min]
+    Latt-IBEKS   | building index for N=5,000...       11.9ms | trap=   0.056ms | qry=   0.336ms | match=62
+         [Progress 10/25 | elapsed=2.3min | ETA=3.4min]
+
+  -- Loading 10,000 records --
+    BVCRSA       | building index for N=10,000...  ⛓️  Blockchain Edge Node initialized — genesis: 00ed3c0465a5e400...
+    46957.4ms | trap=   0.920ms | qry=  22.971ms | match=164
+         [Progress 11/25 | elapsed=3.0min | ETA=3.9min]
+    Trinity      | building index for N=10,000...      591.2ms | trap=1352.415ms | qry=1049.216ms | match=10000
+         [Progress 12/25 | elapsed=3.2min | ETA=3.5min]
+    VC-KASE      | building index for N=10,000...     2575.3ms | trap=   0.259ms | qry=   0.901ms | match=123
+         [Progress 13/25 | elapsed=3.3min | ETA=3.0min]
+    ABSE-Range   | building index for N=10,000...     9750.5ms | trap=   4.720ms | qry=50500.981ms | match=10000
+         [Progress 14/25 | elapsed=5.1min | ETA=4.0min]
+    Latt-IBEKS   | building index for N=10,000...       26.2ms | trap=   0.049ms | qry=   0.730ms | match=123
+         [Progress 15/25 | elapsed=5.1min | ETA=3.4min]
+
+  -- Loading 50,000 records --
+    BVCRSA       | building index for N=50,000...  ⛓️  Blockchain Edge Node initialized — genesis: 00245c8049c72276...
+   230885.6ms | trap=   0.894ms | qry=  34.611ms | match=953
+         [Progress 16/25 | elapsed=9.0min | ETA=5.1min]
+    Trinity      | building index for N=50,000...     3106.6ms | trap=1340.180ms | qry=5313.712ms | match=50000
+         [Progress 17/25 | elapsed=9.6min | ETA=4.5min]
+    VC-KASE      | building index for N=50,000...    13150.9ms | trap=   0.582ms | qry=   5.662ms | match=734
+         [Progress 18/25 | elapsed=9.8min | ETA=3.8min]
+    ABSE-Range   | building index for N=50,000...    48275.3ms | trap=   4.628ms | query=PREDICTED (see note)
+         [Progress 19/25 | elapsed=10.6min | ETA=3.4min]
+    Latt-IBEKS   | building index for N=50,000...      138.3ms | trap=   0.084ms | qry=   5.451ms | match=734
+         [Progress 20/25 | elapsed=10.6min | ETA=2.7min]
+
+  -- Loading 100,000 records --
+    BVCRSA       | building index for N=100,000...  ⛓️  Blockchain Edge Node initialized — genesis: 0093857d79c96988...
+   467488.9ms | trap=   1.160ms | qry=  56.899ms | match=1933
+         [Progress 21/25 | elapsed=18.4min | ETA=3.5min]
+    Trinity      | building index for N=100,000...     7608.7ms | trap=1608.382ms | qry=13755.260ms | match=100000
+         [Progress 22/25 | elapsed=19.8min | ETA=2.7min]
+    VC-KASE      | building index for N=100,000...    32815.8ms | trap=   0.382ms | qry=  15.613ms | match=1497
+         [Progress 23/25 | elapsed=20.4min | ETA=1.8min]
+    ABSE-Range   | building index for N=100,000...   107967.3ms | trap=   4.768ms | query=PREDICTED (see note)
+         [Progress 24/25 | elapsed=22.2min | ETA=55s]
+    Latt-IBEKS   | building index for N=100,000...      275.1ms | trap=   0.086ms | qry=   9.937ms | match=1497
+         [Progress 25/25 | elapsed=22.2min | ETA=0s]
+
+  ABSE-Range query_ms linear fit: slope=4.865174 ms/record, intercept=3289.9290 ms, R^2=0.98382
+
+----------------------------------------------------------------------
+  EXP 7: Query Throughput vs Query Workload (N=10,000 fixed)
+  Method: average per-query latency over R reps, then throughput = 1/latency
+----------------------------------------------------------------------
+
+  -- BVCRSA (R=30 reps) --
+  ⛓️  Blockchain Edge Node initialized — genesis: 00b589798183a5fa...
+    measured per-query latency: 23.5621 ms (avg of 30 reps)
+    throughput (constant across Q, by construction): 42.44 q/s
+
+  -- Trinity (R=5 reps) --
+    measured per-query latency: 1074.5772 ms (avg of 5 reps)
+    throughput (constant across Q, by construction): 0.93 q/s
+
+  -- VC-KASE (R=30 reps) --
+    measured per-query latency: 0.3678 ms (avg of 30 reps)
+    throughput (constant across Q, by construction): 2718.66 q/s
+
+  -- ABSE-Range (R=3 reps) --
+    measured per-query latency: 59109.7090 ms (avg of 3 reps)
+    throughput (constant across Q, by construction): 0.02 q/s
+
+  -- Latt-IBEKS (R=30 reps) --
+    measured per-query latency: 0.5475 ms (avg of 30 reps)
+    throughput (constant across Q, by construction): 1826.38 q/s
+
+======================================================================
+  Done. Total time: 26.3 minutes
+  Results: /home/vboxuser/BVCRSAexp/Final Project Revision/project/revise/benchmark_fig2_5_7_fair_results.csv
+======================================================================
+
