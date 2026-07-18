@@ -41,17 +41,51 @@ def _rand_scalar():
             return r
 
 
+# Memo table for vG with small non-negative plaintexts (sensor domain).
+# vG is a DETERMINISTIC, PUBLIC point: it contains no secret and no
+# randomness (all ciphertext randomness lives in r / rG / rP), so caching
+# it is a pure redundant-computation removal — identical output, identical
+# security. ecdsa point addition never mutates operands, so sharing the
+# cached point object across ciphertexts is safe.
+_SMALL_VG_CACHE = {}
+_SMALL_VG_MAX = 1024
+
+
+def _mul_G(value):
+    """Compute value*G, memoized for small non-negative values."""
+    if isinstance(value, int) and 0 <= value <= _SMALL_VG_MAX:
+        pt = _SMALL_VG_CACHE.get(value)
+        if pt is None:
+            pt = _G * value
+            _SMALL_VG_CACHE[value] = pt
+        return pt
+    return _G * value
+
+
 class ECElGamalPublicKey:
     """EC-ElGamal public key (point P = xG on NIST P-256)."""
 
     def __init__(self, point):
-        self.P = point  # Public key point
+        # Public key point, wrapped with ecdsa's windowed precomputation
+        # table (generator=True) so P * r uses the same fast fixed-point
+        # multiplication path the library already uses for the generator G.
+        # This is the IDENTICAL curve point and identical arithmetic — only
+        # the scalar-multiplication algorithm changes (verified: outputs are
+        # byte-identical), so it alters no scheme semantics and no security.
+        from ecdsa.ellipticcurve import PointJacobi
+        try:
+            px, py = int(point.x()), int(point.y())
+            self.P = PointJacobi(NIST256p.curve, px, py, 1,
+                                 order=_ORDER, generator=True)
+        except (AttributeError, TypeError):
+            # Point at infinity or non-standard point: keep as-is.
+            self.P = point
 
     def encrypt(self, value):
         """Lifted EC-ElGamal encryption: Enc(v) = (rG, vG + rP)."""
         r = _rand_scalar()
         C1 = _G * r
-        C2 = (_G * value) + (self.P * r)
+        C2 = _mul_G(value) + (self.P * r)
         return ECEncryptedNumber(self, C1, C2)
 
     @property
@@ -133,7 +167,7 @@ class ECEncryptedNumber:
             return ECEncryptedNumber(
                 self.public_key,
                 self.C1,
-                self.C2 + (_G * other),
+                self.C2 + _mul_G(other),
             )
         return NotImplemented
 

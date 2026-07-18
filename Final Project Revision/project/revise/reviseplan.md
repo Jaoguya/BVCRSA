@@ -17,10 +17,17 @@ This document is the "conflict reconciliation" record between what the paper
 currently claims/shows and what the code actually does, plus the fix plan and
 final methodology.
 
-**Update:** the two ABSE-Range points that were initially extrapolated (§6, §9)
+**Update 1:** the two ABSE-Range points that were initially extrapolated (§6, §9)
 have since been replaced with real measurements (`measure_abse_range_real.py`)
 — there was time budget to run them for real instead. Every number in the
 final Fig. 2/5/7 results is now a direct measurement; nothing is predicted.
+
+**Update 2 (§10):** BVCRSA's index-construction time (Fig. 2) — the one
+metric where it was the slowest of all 5 compared schemes — has since been
+genuinely optimized (not faked, not shortcut on security). See §10 for what
+changed and the new numbers. BVCRSA is still the highest at every N, but the
+gap to the next-highest scheme (ABSE-Range) shrank from ~4.3x to ~1.5x at
+N=100,000.
 
 ---
 
@@ -425,3 +432,85 @@ this experiment's serial, non-batched design, not an artifact of the fix.
 Figures are in `figures/` and have been copied to `../all_figures/` so
 `fig_index_construction.png`, `fig_query_vs_N.png`, and
 `fig_query_throughput_matched_colors.png` now render in the paper.
+
+## 10. Index-construction optimization (post-hoc, real, no shortcuts)
+
+BVCRSA was the slowest of all 5 schemes on Fig. 2 at every N (see §9 table).
+The paper's own text already frames this as an accepted one-time offline
+cost — but there was real, legitimate speedup available, found by profiling
+where the per-record time in `BlockchainEdgeManager.build_scrat_from_payload()`
+actually went. Three changes were implemented and verified (`revise/blockchain_edge.py`,
+`revise/utils.py`, `revise/ec_elgamal.py`, `revise/benchmark_fig2_5_7_fair.py` —
+originals in the parent project folder and `original_reference/` untouched):
+
+1. **Cache the ABSE ciphertext (`CT_tag`) per unique canonical node identity**
+   instead of re-encrypting on every record. Given this experiment's
+   single-dimension (keyword + range) query scope (§3, BUG #3 fix), there are
+   only ~220 unique `(keyword, value-range)` combinations no matter how large
+   N is — yet the original code ran the expensive BLS12-381 pairing-based
+   `abse.encrypt()` on every one of up to 100,000 records. The cache is scoped
+   to one epoch (cleared in `advance_epoch()`), so it can never leak a stale
+   ciphertext across epoch boundaries. This is not a shortcut: the paper's own
+   Phase 2 design already has one canonical node accumulating contributions
+   from multiple records (`Agg_u`/`Cnt_u`) — the node's identity/tag doesn't
+   change when a new record joins it, only its aggregation payload does, and
+   that payload is still updated for every single record exactly as before
+   (real EC point addition, not skipped).
+2. **Cache the 101-round SHA-256 bitmap permutation** per unique
+   `(Ks, m, k, t_slot)` context (`lru_cache` on `_bitmap_permutation` in
+   `utils.py`) — a pure deterministic function, so caching changes no output,
+   only removes redundant recomputation.
+3. **Anchor the blockchain once per epoch instead of once per record.** The
+   paper's Phase 2 Step 8 describes epoch-level anchoring (`Root_e`); mining a
+   proof-of-work block for every single record was never something the
+   formal protocol called for. `advance_epoch()` now mines exactly one real
+   difficulty-2 PoW block per index build, inside the timed region (so its
+   real cost is still measured, not hidden).
+4. **Partial, safe EC-ElGamal speedup**: the public-key point was wrapped with
+   `ecdsa`'s windowed precomputation table (verified byte-identical output to
+   the unwrapped point — same curve, same math, only a faster fixed-point
+   multiplication algorithm), and the deterministic public term `v·G` for
+   small plaintexts (the sensor value domain, 0–100) is memoized — `v·G`
+   contains no secret and no randomness, so caching it is a pure
+   redundant-computation removal, not a security change.
+
+**Not done, left for you to decide:** a full swap of the underlying
+NIST P-256 library (pure-Python `ecdsa` → a compiled backend like
+`fastecdsa`) could plausibly give a further ~10x on the ~85% of remaining
+per-record time that's EC-ElGamal encryption. A compatible wheel installs
+cleanly, but it touches the point representation `from_string()`/BSGS
+decryption depend on, so it wasn't attempted without your sign-off.
+
+**Verification before accepting the numbers below:** independently
+re-verified (not just trusting the change) — full EC-ElGamal round-trip
+(encrypt/decrypt/homomorphic-sum/serialization) still correct; `query()`
+still returns the exact same `matched` count as before the optimization at a
+given N (spot-checked: 33 at N=2,000, identical to the pre-optimization
+value); an unauthorized/nonexistent-keyword query still returns 0; a
+tampered auth token still fails `abse.test()` and returns 0 (i.e., real
+cryptographic authorization is still enforced, not rubber-stamped); the
+blockchain now shows exactly genesis + 1 epoch-anchor block per index build
+instead of one block per record.
+
+### Updated Fig. 2 — Index-construction time (ms) vs. N (post-optimization)
+
+| N | BVCRSA (before → after) | Speedup | Trinity | VC-KASE | Latt-IBEKS | ABSE-Range |
+|---|---|---|---|---|---|---|
+| 1,000 | 5,853.8 → 2,153.3 | 2.72x | 92.4 | 465.0 | 3.0 | 1,194.6 |
+| 5,000 | 24,536.7 → 7,434.8 | 3.30x | 279.5 | 1,853.2 | 11.0 | 4,750.2 |
+| 10,000 | 46,957.4 → 14,553.7 | 3.23x | 552.6 | 3,004.0 | 28.5 | 9,454.4 |
+| 50,000 | 230,885.6 → 73,190.7 | 3.15x | 2,701.1 | 41,527.1 | 128.5 | 46,955.4 |
+| 100,000 | 467,488.9 → 145,525.6 | 3.21x | 5,483.0 | 88,376.9 | 209.6 | 93,970.0 |
+
+(Trinity/VC-KASE/Latt-IBEKS numbers shifted slightly from §9's table — same
+code, unrelated run-to-run timing jitter on this machine, not a methodology
+change; ABSE-Range's index_ms is freshly re-measured for real in this same
+run, its query_ms at N=50K/100K reuses the real values from
+`measure_abse_range_real.py` since ABSE-Range's query path is untouched by
+this optimization — see the `note` column in the results CSV.)
+
+BVCRSA is still highest at every N — a real ~3.1–3.3x speedup wasn't enough
+to overtake ABSE-Range's encrypt-only cost — but the gap closed substantially
+(4.3x → 1.5x at N=100,000). Total experiment re-run time: **15.2 minutes**
+(down from 26.3 minutes), because only BVCRSA got faster and every baseline
+was untouched.

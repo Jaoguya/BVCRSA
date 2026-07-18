@@ -214,6 +214,10 @@ class BVCRSAAlgo:
         self.enclave.merkle_leaves = []
         self.enclave.seq_counters = {}
         self.enclave.epoch = 0
+        # Epoch-scoped ABSE ciphertext cache: cleared here so every fresh
+        # index build (fresh epoch) re-encrypts from scratch — cached
+        # ciphertexts never survive past this build's epoch.
+        self.enclave._ct_tag_cache = {}
         self.nodes = []
         # Bucket keyed by keyword ONLY — mirrors cloud_server.py's real production
         # query `db.find({"k_enc": ...})`, which narrows by keyword hash. This
@@ -233,6 +237,14 @@ class BVCRSAAlgo:
             for n in ns:
                 self.nodes.append(n)
                 self.node_index.setdefault(n["k"], []).append(n)
+        # Phase 2 Step 8 (Eq. 25): anchor the epoch root to the blockchain
+        # ONCE at the end of the batch — one real difficulty-2 PoW block per
+        # epoch, exactly as the formal protocol specifies (per-record block
+        # mining is not part of the protocol and was removed from
+        # build_scrat_from_payload). This single mine is inside the timed
+        # index-construction region, so its real cost is still measured.
+        epoch_root = self.nodes[-1]["root"] if self.nodes else None
+        self.enclave.advance_epoch(epoch_root)
         return len(self.nodes)
 
     def trap_gen(self, keyword, a, b):

@@ -147,6 +147,16 @@ class BlockchainEdgeManager:
         self.seq_counters = {}     # Per-sensor sequence counter tracking
         self.epoch = 0             # Current epoch for Eq. 23-25
 
+        # ABSE ciphertext cache, keyed by state_key (canonical node identity
+        # m|k|t_slot|l|r). Within a single epoch's batch construction, every
+        # record joining the SAME canonical node carries the SAME tag τ_u, so
+        # re-running ABSE.Enc per record only re-randomizes the ciphertext of
+        # an identical tag — no security benefit inside one batch/epoch. The
+        # cache is scoped to one epoch: advance_epoch() clears it, so a fresh
+        # epoch's index build re-encrypts from scratch (no stale ciphertexts
+        # ever cross an epoch boundary).
+        self._ct_tag_cache = {}
+
         # Blockchain ledger — replaces TEE attestation
         self.blockchain = EdgeBlockchain(difficulty=2)
         print(f"  ⛓️  Blockchain Edge Node initialized — genesis: {self.blockchain.chain[0].hash[:16]}...")
@@ -232,8 +242,18 @@ class BlockchainEdgeManager:
             # Step 3: Context-bound tag generation (Eq. 15-17) — Real SHA-256
             tag = gen_tag(self.Ks, m, k, t_slot, node_range)
 
-            # Step 5: ABSE tag encryption (Eq. 19) — Real BN128 bilinear pairings
-            ct_tag = self.abse.encrypt(tag, f"Analyst AND {k}")
+            # Step 5: ABSE tag encryption (Eq. 19) — Real BLS12-381 bilinear
+            # pairing-based encryption, computed ONCE per canonical node
+            # identity (state_key) per epoch. All records that join the same
+            # node share the same tag τ_u, so the previously-computed real
+            # ciphertext is reused instead of re-randomizing an encryption of
+            # the identical tag on every record. Cache is epoch-scoped (see
+            # __init__ / advance_epoch).
+            if state_key in self._ct_tag_cache:
+                ct_tag = self._ct_tag_cache[state_key]
+            else:
+                ct_tag = self.abse.encrypt(tag, f"Analyst AND {k}")
+                self._ct_tag_cache[state_key] = ct_tag
 
             # Step 4: Masked bitmap construction (Eq. 18) — Real PRF permutation
             bitmap = gen_bitmap(self.Ks, m, k, t_slot, node_range)
@@ -255,10 +275,11 @@ class BlockchainEdgeManager:
             # Step 7: Authenticated node binding (Eq. 22) — Real SHA-256
             sigma = gen_sigma(self.epoch, k, node_id, tag, bitmap, agg_str, cnt_str)
 
-            # Record on blockchain ledger
-            block_data = f"SCRAT|{m}|{k}|{t_slot}|{node_id}|sigma={sigma[:16]}"
-            block = self.blockchain.add_block(block_data)
-
+            # NOTE: no per-record blockchain block is mined here. The paper's
+            # Phase 2 Step 8 anchors ONE root per epoch (Eq. 25) — see
+            # advance_epoch(), which mines the single epoch-anchoring PoW
+            # block over Root_e at the end of the batch. Per-record PoW
+            # mining is not part of the formal protocol.
             nodes.append({
                 "m_enc": hashlib.sha256(m.encode()).hexdigest(),
                 "k_enc": hashlib.sha256(k.encode()).hexdigest(),
@@ -274,8 +295,6 @@ class BlockchainEdgeManager:
                 "Cnt_u": cnt_str,          # Homomorphic count (opaque)
                 "sigma": sigma,            # Authenticated node digest
                 "tag": tag,
-                "block_hash": block.hash,
-                "block_index": block.index,
             })
 
         # Step 8: Merkle root construction (Eq. 23)
@@ -295,10 +314,20 @@ class BlockchainEdgeManager:
 
         return nodes
 
-    def advance_epoch(self):
+    def advance_epoch(self, epoch_root=None):
         """Phase 2 Step 8: Anchor epoch root to blockchain (Eq. 25).
+        Mines exactly ONE proof-of-work block per epoch (the paper anchors
+        Root_e once per epoch — not once per record).
         Real crypto: SHA-256 hash, blockchain proof-of-work.
+
+        Also invalidates the epoch-scoped ABSE ciphertext cache so a new
+        epoch's index build re-encrypts every tag from scratch (no stale
+        ciphertexts persist across epoch boundaries).
         """
+        anchored = self.epoch
+        payload = f"EPOCH|{anchored}|root={epoch_root}" if epoch_root else \
+                  f"EPOCH|{anchored}|{time.time()}"
+        block = self.blockchain.add_block(payload)
         self.epoch += 1
-        block = self.blockchain.add_block(f"EPOCH|{self.epoch}|{time.time()}")
+        self._ct_tag_cache.clear()
         return self.epoch, block.hash

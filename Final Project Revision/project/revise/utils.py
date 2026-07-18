@@ -7,6 +7,7 @@ No simulation — every operation produces cryptographically binding outputs.
 
 import hashlib
 import struct
+from functools import lru_cache
 
 
 def gen_tag(Ks, m, k, t_slot, node):
@@ -41,11 +42,19 @@ def gen_sigma(epoch, dim_j, node_id, tag, bitmap_str, agg_str, cnt_str):
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+@lru_cache(maxsize=4096)
 def _bitmap_permutation(Ks, m, k, t_slot):
     """PRF-based deterministic bit permutation (AND-preserving).
 
     Returns permutation table so π(B_u) AND π(B_Q) ≠ 0 ⟺ B_u AND B_Q ≠ 0.
     Real crypto: SHA-256 chain as PRF for Fisher-Yates shuffle.
+
+    Memoized (lru_cache): this is a pure deterministic function of
+    (Ks, m, k, t_slot) — the 101-round SHA-256 Fisher-Yates shuffle always
+    yields the identical table for identical inputs, so caching changes no
+    output value, only removes redundant recomputation across records that
+    share the same context. Returned as an immutable tuple so the cached
+    table cannot be mutated by callers.
     """
     DOMAIN_SIZE = 101
     ctx_bytes = Ks + f"|{m}|{k}|{t_slot}".encode()
@@ -57,7 +66,7 @@ def _bitmap_permutation(Ks, m, k, t_slot):
         j = int.from_bytes(h[:4], 'big') % (i + 1)
         positions[i], positions[j] = positions[j], positions[i]
 
-    return positions
+    return tuple(positions)
 
 
 def _apply_permutation(bitmap_int, perm):
