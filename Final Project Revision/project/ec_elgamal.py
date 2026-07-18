@@ -86,7 +86,15 @@ class ECElGamalPrivateKey:
         # Compute vG = C2 - x*C1
         neg_xC1 = encrypted.C1 * ((_ORDER - self._x) % _ORDER)
         vG = encrypted.C2 + neg_xC1
+        return self.recover_from_point(vG)
 
+    def recover_from_point(self, vG):
+        """BSGS lookup: recover v such that vG == the given point.
+
+        Split out from decrypt() so threshold decryption (which combines
+        partial decryptions into vG without ever assembling x) can reuse
+        the same precomputed BSGS table.
+        """
         # Handle zero (point at infinity)
         # Check if vG is identity — ecdsa library uses INFINITY sentinel
         try:

@@ -1,0 +1,38 @@
+================================================================
+  Aggregation Strategy Comparison: Normal vs BVCRSA
+  N=10000  threshold=(3,5)  RUNS=20
+================================================================
+
+[+] Generating EC-ElGamal keypair (NIST P-256) + BSGS table...
+[+] Shamir-splitting the private key into 5 shares (t=3)...
+[+] Correctness precondition check (|SQ|=200, full decryption)...
+    OK: decrypt-then-aggregate == aggregate-then-decrypt
+
+[+] |SQ|=10
+    normal=   316.764 ms   bvcrsa=  63.480 ms   speedup=    5.0x   (exact)
+[+] |SQ|=50
+    normal=  1386.259 ms   bvcrsa=  54.746 ms   speedup=   25.3x   (exact)
+[+] |SQ|=100
+    normal=  2854.554 ms   bvcrsa=  61.073 ms   speedup=   46.7x   (exact)
+[+] |SQ|=500
+    normal= 14431.561 ms   bvcrsa=  76.812 ms   speedup=  187.9x   (sampled n=150)
+[+] |SQ|=1000
+    normal= 22984.935 ms   bvcrsa=  74.123 ms   speedup=  310.1x   (sampled n=150)
+[+] |SQ|=5000
+    normal= 98088.068 ms   bvcrsa= 161.862 ms   speedup=  606.0x   (sampled n=150)
+[+] |SQ|=10000
+    normal=196078.022 ms   bvcrsa= 292.431 ms   speedup=  670.5x   (sampled n=150)
+
+[+] Results saved to /home/vboxuser/BVCRSAexp/Final Project Revision/project/agg_strategy_results.csv
+
+================================================================================================
+      |SQ|   Normal calls   BVCRSA calls    Normal (ms)    BVCRSA (ms)    Speedup
+  --------------------------------------------------------------------------------------------
+        10             10              2         316.76         63.480       5.0x
+        50             50              2        1386.26         54.746      25.3x
+       100            100              2        2854.55         61.073      46.7x
+       500            500              2       14431.56         76.812     187.9x
+      1000           1000              2       22984.94         74.124     310.1x
+      5000           5000              2       98088.07        161.862     606.0x
+     10000          10000              2      196078.02        292.431     670.5x
+================================================================================================
