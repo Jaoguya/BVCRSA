@@ -2,14 +2,22 @@
 Phase 1: System Initialization — Trusted Authority (Eq. 1-9)
 
 Generates and distributes:
-  - ABSE parameters (PP, MSK) via BN128 bilinear pairings  (Eq. 1)
+  - ABSE parameters (PP, MSK) via bilinear pairings          (Eq. 1)
   - EC-ElGamal keypair (pk_AHE, sk_AHE) over NIST P-256    (Eq. 5-6)
   - PRF seed Ks for tag/bitmap construction                  (Eq. 7-8)
   - Per-sensor AES key K_AES^(i) = KDF(K_master, ID_i)      (Eq. 10)
   - Per-sensor HMAC key K_HMAC^(i) = KDF(K_master, ID_i||"hmac") (Eq. 13)
 
-Real crypto: BN128 pairings (ABSE), NIST P-256 (EC-ElGamal), SHA-256 (KDF).
+Real crypto: bilinear pairings (ABSE), NIST P-256 (EC-ElGamal), SHA-256 (KDF).
 No Paillier — paper specifies lifted EC-ElGamal exclusively.
+
+NOTE on pairing backend: this module prefers `abse_fast` (BLS12-381
+via py_arkworks_bls12381, ~50x faster) and falls back to `abse_real`
+(BN128 via py_ecc) only if the Rust extension isn't installed. If
+abse_fast is present -- which it is in this environment -- ALL
+reported ABSE timings use BLS12-381, not BN128, even though the
+paper's Experimental Setup section states BN128/py_ecc. Keep that in
+sync with whichever backend actually produced the benchmarked numbers.
 """
 
 import hashlib
@@ -32,7 +40,8 @@ class TrustedAuthority:
         self.ec_pubkey, self.ec_privkey = generate_ec_elgamal_keypair(max_val=500000)
 
         # Phase 1 Step 1: ABSE Setup (Eq. 1)
-        # (PP, MSK) ← ABSE.Setup(1^λ) using BN128 bilinear pairings
+        # (PP, MSK) ← ABSE.Setup(1^λ) -- BLS12-381 if abse_fast loaded
+        # above, else BN128 (see module docstring).
         self.abse = ABSE()
         self.abse.setup()
 
@@ -52,8 +61,9 @@ class TrustedAuthority:
 
     def key_gen(self, attributes):
         """Phase 1 Step 3: Attribute-based key generation (Eq. 2)
-        SK_A ← ABSE.KeyGen(MSK, A) using real BN128 bilinear pairings.
-        Also distributes EC-ElGamal keys and PRF seed Ks.
+        SK_A ← ABSE.KeyGen(MSK, A) using real bilinear pairings
+        (BLS12-381 or BN128, whichever backend loaded -- see module
+        docstring). Also distributes EC-ElGamal keys and PRF seed Ks.
         """
         # Real ABSE key generation with bilinear pairing secret keys
         abse_sk = self.abse.key_gen(self.abse.MSK, attributes)

@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Plot: Verification Overhead — BVCRSA vs Trinity vs VC-KASE
+Reads from verification_overhead_exp_results.csv (Task 6B-compliant).
+Generates fig_verification_overhead.png for the manuscript.
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -6,7 +13,7 @@ plt.rcParams.update({
     'font.family': 'sans-serif',
     'font.sans-serif': ['Arial', 'Helvetica', 'DejaVu Sans'],
     'font.size': 13,
-    'axes.labelsize': 13,
+    'axes.labelsize': 14,
     'axes.titlesize': 14,
     'xtick.labelsize': 11,
     'ytick.labelsize': 11,
@@ -16,7 +23,7 @@ plt.rcParams.update({
 })
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.join(BASE_DIR, "verification_overhead_results.csv")
+CSV_FILE = os.path.join(BASE_DIR, "verification_overhead_exp_results.csv")
 OUT_FILE = os.path.join(BASE_DIR, "fig_verification_overhead.png")
 
 COLORS = {
@@ -32,15 +39,15 @@ def main():
 
     fig, ax = plt.subplots(figsize=(7, 5.5))
     series = {
-        "BVCRSA (Ours)": df["bvcrsa_ms"],
-        "Trinity": df["trinity_ms"],
-        "VC-KASE": df["vckase_ms"],
+        "BVCRSA (Ours)": df["bvcrsa_verify_ms"],
+        "Trinity": df["trinity_verify_ms"],
+        "VC-KASE": df["vckase_verify_ms"],
     }
     for name, y in series.items():
         ax.plot(df["returned_results"], y, marker=MARKERS[name],
-                 color=COLORS[name], label=name)
+                color=COLORS[name], label=name)
 
-    ax.set_xlabel("Number of Returned Results")
+    ax.set_xlabel("Number of Returned Results ($|R_Q|$)")
     ax.set_ylabel("Verification Time (ms)")
     ax.legend(frameon=False)
     ax.grid(True, alpha=0.3)

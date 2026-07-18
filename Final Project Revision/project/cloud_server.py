@@ -16,7 +16,11 @@ It operates solely on encrypted structures and public parameters.
 """
 
 import hashlib
-from abse_real import ABSE
+try:
+    from abse_fast import ABSE  # Rust-native BLS12-381 -- must match
+except ImportError:              # whichever backend TA.py/blockchain_edge.py
+    from abse_real import ABSE   # actually used to build CT_tag, or
+                                  # test() fails to even parse the ciphertext.
 
 
 class CloudServer:
@@ -74,17 +78,18 @@ class CloudServer:
             return []
 
         # Step 2: PRF tag set matching + bitmap filter
+        # eBQ is invariant across docs -- parse each token's query bitmap
+        # once, outside the per-doc loop (was previously re-parsed on
+        # every single doc x token pair).
+        query_bitmaps = [self._parse_bitmap(tok["eBQ"]) for tok in trapdoor.get("tokens", [])]
+
         matched = []
         for doc in docs:
-            if "tokens" in trapdoor:
-                bitmap_pass = False
-                for tok in trapdoor["tokens"]:
-                    b_node = int(doc["B_tilde"], 2) if isinstance(doc["B_tilde"], str) and all(c in '01' for c in doc["B_tilde"]) else int(doc["B_tilde"])
-                    b_query = int(tok["eBQ"], 2) if isinstance(tok["eBQ"], str) and all(c in '01' for c in tok["eBQ"]) else int(tok["eBQ"])
-                    if b_node & b_query:
-                        bitmap_pass = True
-                        break
-                if not bitmap_pass:
+            if query_bitmaps:
+                # B_tilde is invariant across tokens for a given doc --
+                # parse once per doc, not once per (doc, token) pair.
+                b_node = self._parse_bitmap(doc["B_tilde"])
+                if not any(b_node & b_query for b_query in query_bitmaps):
                     continue
 
             if doc.get("search_tag") in expected_tags:
@@ -94,12 +99,14 @@ class CloudServer:
 
     def _query_legacy(self, docs, trapdoor, abse):
         """Legacy: per-node ABSE.Test (2 BN128 pairings per node)."""
+        query_bitmaps = [(tok, self._parse_bitmap(tok["eBQ"])) for tok in trapdoor["tokens"]]
+
         matched = []
         for doc in docs:
-            for tok in trapdoor["tokens"]:
+            # B_tilde is invariant across tokens for a given doc.
+            b_node = self._parse_bitmap(doc["B_tilde"])
+            for tok, b_query in query_bitmaps:
                 # Step 1: Bitmap filter (Eq. 37)
-                b_node = int(doc["B_tilde"], 2) if isinstance(doc["B_tilde"], str) and all(c in '01' for c in doc["B_tilde"]) else int(doc["B_tilde"])
-                b_query = int(tok["eBQ"], 2) if isinstance(tok["eBQ"], str) and all(c in '01' for c in tok["eBQ"]) else int(tok["eBQ"])
                 if not (b_node & b_query):
                     continue
 

@@ -36,15 +36,33 @@ design rather than an arbitrary cost model:
                the same library abse_fast.py uses), matching its
                O(T_pair) verification complexity.
 
-All results are averaged over 20 independent runs.
+All results are the median of 300 independent runs, with the garbage
+collector disabled during timing. Runs are INTERLEAVED across schemes
+(one BVCRSA rep, one Trinity rep, one VC-KASE rep, repeat) rather than
+run as three back-to-back blocks, so all three schemes are sampled
+under the same transient system conditions at every point in the
+sweep instead of each scheme's block being exposed to however the
+system happened to be loaded during the minutes it ran in isolation.
+
+Methodology note: which specific subset of |R_Q| positions is
+verified is picked DETERMINISTICALLY (evenly spaced across the
+N-record space), not via a fresh random.sample() per call. A random
+subset changes the Merkle multi-proof's sibling-sharing pattern from
+draw to draw -- variance in WHICH indices got picked, unrelated to
+the variable actually being studied (|R_Q|) -- which was adding noise
+on top of genuine timing jitter. Evenly-spaced indices remove that
+confound while remaining a fair, non-adversarial access pattern; the
+underlying crypto operations performed per result are unchanged.
 """
 
 import os
 import sys
 import csv
+import gc
 import hmac
 import hashlib
 import random
+import statistics
 import time
 import math
 
@@ -53,19 +71,50 @@ sys.path.insert(0, BASE_DIR)
 
 N_TOTAL = 10_000
 RESULT_COUNTS = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
-RUNS = 100
+RUNS = 300
+WARMUP_RUNS = 10
 CSV_FILE = os.path.join(BASE_DIR, "verification_overhead_results.csv")
 
 random.seed(42)
 
 
-def timed_ms(fn, runs=RUNS):
-    samples = []
-    for _ in range(runs):
-        t0 = time.perf_counter()
-        fn()
-        samples.append((time.perf_counter() - t0) * 1000)
-    return sum(samples) / len(samples)
+def evenly_spaced_indices(r, n=N_TOTAL):
+    """Deterministic, evenly-spaced subset of size r out of range(n)."""
+    return [int(i * n / r) for i in range(r)]
+
+
+def timed_interleaved_ms(fns, runs=RUNS, warmup=WARMUP_RUNS):
+    """Time several zero-arg callables under IDENTICAL run conditions:
+    rather than completing all `runs` repetitions of fn A before
+    starting fn B (which lets system load drift over the minutes a
+    full sweep takes bias one scheme's block relative to another's),
+    a single round runs A, then B, then C, then loops back to A --
+    so every scheme is sampled in close succession, under essentially
+    the same transient system state, at every point in the sweep.
+
+    Args:
+        fns: dict of {name: zero-arg callable}.
+    Returns:
+        dict of {name: median_ms}.
+    """
+    names = list(fns.keys())
+    for name in names:
+        for _ in range(warmup):
+            fns[name]()
+
+    samples = {name: [] for name in names}
+    gc_was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        for _ in range(runs):
+            for name in names:
+                t0 = time.perf_counter()
+                fns[name]()
+                samples[name].append((time.perf_counter() - t0) * 1000)
+    finally:
+        if gc_was_enabled:
+            gc.enable()
+    return {name: statistics.median(vals) for name, vals in samples.items()}
 
 
 def _hash(data):
@@ -94,7 +143,7 @@ def bvcrsa_verify_multiproof(r):
     multi-proof: internal nodes on the shared path of >=2 selected
     leaves are combined once and reused, rather than rehashed per leaf.
     """
-    idxs = random.sample(range(N_TOTAL), r)
+    idxs = evenly_spaced_indices(r)
     # known[level] = {index: hash}; recompute leaf hashes from raw data
     # (the real per-leaf hashing work every verifier must do).
     known = {0: {i: _hash(_bvcrsa_leaves_raw[i]) for i in idxs}}
@@ -138,7 +187,7 @@ for i in range(N_TOTAL):
 
 
 def trinity_verify(r):
-    idxs = random.sample(range(N_TOTAL), r)
+    idxs = evenly_spaced_indices(r)
     for i in idxs:
         entry = _trinity_entries[i]
         # Step 1: real SHVE.Match predicate re-check
@@ -173,9 +222,12 @@ def main():
 
     rows = []
     for r in RESULT_COUNTS:
-        bvcrsa_ms = timed_ms(lambda: bvcrsa_verify_multiproof(r))
-        trinity_ms = timed_ms(lambda: trinity_verify(r))
-        vckase_ms = timed_ms(lambda: vckase_verify(r))
+        results = timed_interleaved_ms({
+            "bvcrsa": lambda r=r: bvcrsa_verify_multiproof(r),
+            "trinity": lambda r=r: trinity_verify(r),
+            "vckase": lambda r=r: vckase_verify(r),
+        })
+        bvcrsa_ms, trinity_ms, vckase_ms = results["bvcrsa"], results["trinity"], results["vckase"]
         rows.append({
             "returned_results": r,
             "bvcrsa_ms": round(bvcrsa_ms, 4),

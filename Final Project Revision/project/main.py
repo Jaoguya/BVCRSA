@@ -15,6 +15,7 @@ Architecture (per paper):
   User   → decrypts aggregate with sk_AHE
 """
 
+import os
 import time
 import sys
 import hashlib
@@ -29,8 +30,16 @@ from ec_elgamal import ECEncryptedNumber
 
 app = Flask(__name__)
 
-# MongoDB Atlas connection
-uri = "mongodb+srv://yewza232_db_user:5qCbuPzMrzPSpflq@projectsomchart.lkihxz4.mongodb.net/?appName=ProjectSomchart"
+# MongoDB Atlas connection -- credentials must be supplied via
+# environment variables, never hardcoded (this file is version
+# controlled). Set BVCRSA_MONGO_URI before running this server.
+uri = os.environ.get("BVCRSA_MONGO_URI")
+if not uri:
+    raise RuntimeError(
+        "BVCRSA_MONGO_URI is not set. Export it to a MongoDB "
+        "connection string before starting the server, e.g.\n"
+        "  export BVCRSA_MONGO_URI='mongodb+srv://<user>:<pass>@<host>/?appName=...'"
+    )
 client = MongoClient(uri)
 db = client["IIoT_Security_DB"]
 collection = db["AC_SCRAT_Nodes"]
@@ -169,10 +178,15 @@ def query():
         merkle_root = matched_docs[0]["root"] if matched_docs else "EMPTY"
         pi_agg = gen_pi_agg(merkle_root, ",".join(node_ids), ct_sum_str, ct_cnt_str)
 
-        # Collect proofs for client-side verification
+        # Collect proofs for client-side verification. search_tag is
+        # required (with sigma/CT_v/Cnt_u) to reconstruct the exact
+        # leaf string blockchain_edge.py committed into the Merkle
+        # tree -- without it UserClient.verify_matched_nodes() cannot
+        # recompute the leaf and every proof check would be vacuous.
         node_proofs = [{
             "m": trapdoor["m"], "k": trapdoor["k"],
             "t": d["t"], "l": d["l"], "r": d["r"],
+            "search_tag": d["search_tag"],
             "sigma": d["sigma"], "pi_u": d["pi_u"],
             "root": d["root"], "CT_v": d["CT_v"], "Cnt_u": d["Cnt_u"]
         } for d in matched_docs]

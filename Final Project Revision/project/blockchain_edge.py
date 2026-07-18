@@ -290,7 +290,12 @@ class BlockchainEdgeManager:
 
         for i, n in enumerate(nodes):
             n["pi_u"] = mt.get_proof(i)
-            n["root"] = epoch_root
+            # `root` is the index-tree root pi_u is actually a proof
+            # against (Root_idx, Eq. 23) -- NOT epoch_root. Attaching
+            # epoch_root here would make every verify_proof(leaf, pi_u,
+            # root) call fail, since pi_u was built relative to root_idx.
+            n["root"] = root_idx
+            n["epoch_root"] = epoch_root
             del n["tag"]
 
         return nodes

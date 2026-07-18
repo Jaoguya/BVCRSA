@@ -33,7 +33,7 @@ rpi_hmac_key = ta.get_sensor_hmac_key("RPI_01")
 
 t1 = time.perf_counter()
 print(f"  ✅ TA initialized in {(t1-t0)*1000:.1f} ms")
-print(f"     ABSE: BN128 bilinear pairings (real)")
+print(f"     ABSE: {ta.abse.__class__.__module__} bilinear pairings (real)")
 print(f"     AHE:  EC-ElGamal NIST P-256 (real)")
 print(f"     PRF:  SHA-256 seed Ks (real)")
 print(f"     Sensor keys: AES-128 + HMAC-SHA256 (real)")
@@ -98,7 +98,7 @@ print(f"\n  ⛓️  Blockchain: {bc_info['chain_length']} blocks, valid={bc_info
 # Show a sample node
 sample = all_nodes[0]
 print(f"\n  📄 Sample SCRAT node [{sample['l']},{sample['r']}]:")
-print(f"     CT_tag:      {str(sample['CT_tag'])[:60]}... (ABSE BN128)")
+print(f"     CT_tag:      {str(sample['CT_tag'])[:60]}... (ABSE, real bilinear pairings)")
 print(f"     B_tilde:     {sample['B_tilde'][:20]}... (101-bit PRF bitmap)")
 print(f"     Agg_u:       {sample['Agg_u'][:40]}... (EC-ElGamal)")
 print(f"     Cnt_u:       {sample['Cnt_u'][:40]}... (EC-ElGamal)")
@@ -119,7 +119,7 @@ t0 = time.perf_counter()
 td = client.generate_trapdoor("Machine_01", "Temp", "2026-05-20 15", 30, 50)
 t1 = time.perf_counter()
 print(f"  ✅ Trapdoor for Temp ∈ [30,50]: {len(td['tokens'])} tokens in {(t1-t0)*1000:.1f} ms")
-print(f"     ABSE.TokenGen: real BN128 pairings with fresh r_q per token")
+print(f"     ABSE.TokenGen: real bilinear pairings with fresh r_q per token")
 
 # ──────────────────────────────────────────────────────────────
 #  Phase 3: Trapdoor Generation (Conjunctive)
@@ -180,6 +180,16 @@ from ec_elgamal import ECEncryptedNumber
 
 # Aggregate matched nodes (single query)
 if matched:
+    # Theorem 6/7: verify every matched node's Merkle inclusion proof
+    # BEFORE trusting its aggregation ciphertext. This was previously
+    # unwired anywhere in the codebase -- the claim below is only
+    # true because of the client.verify_matched_nodes() call.
+    t0 = time.perf_counter()
+    client.verify_matched_nodes(matched)
+    t1 = time.perf_counter()
+    print(f"  ✅ Merkle proofs verified for {len(matched)} matched node(s) "
+          f"in {(t1-t0)*1000:.2f} ms (Theorem 6/7)")
+
     agg_sum, agg_cnt = None, None
     for doc in matched:
         ct_v = ECEncryptedNumber.from_string(edge.ec_pubkey, doc["Agg_u"])
@@ -230,7 +240,7 @@ print("""
   Real crypto verified:
     • AES-GCM encryption (sensor-side)
     • EC-ElGamal encryption + homomorphic addition + BSGS decryption
-    • ABSE: Setup, KeyGen, Enc, TokenGen, Test (BN128 bilinear pairings)
+    • ABSE: Setup, KeyGen, Enc, TokenGen, Test (real bilinear pairings)
     • HMAC-SHA256 payload verification
     • SHA-256 PRF tags, bitmaps, sigma, Merkle proofs
     • Blockchain hash chain with proof-of-work

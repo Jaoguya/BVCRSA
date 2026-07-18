@@ -5,11 +5,13 @@ Supports:
   - Single-dimension: Q = (D, [a, b])
   - Conjunctive multi-range: Q = Q_1 ∧ Q_2 ∧ ... ∧ Q_d
 
-Real crypto: ABSE.TokenGen with BN128 bilinear pairings (Eq. 30),
+Real crypto: ABSE.TokenGen with bilinear pairings (Eq. 30) -- BLS12-381
+             via abse_fast if installed, else BN128 via abse_real --
              PRF tags with SHA-256 (Eq. 15-17).
 """
 
 from utils import gen_tag, gen_query_bitmap
+from merkle_tree import MerkleTree
 
 
 class UserClient:
@@ -78,6 +80,55 @@ class UserClient:
             "d": len(dimensions),
             "dimensions": dim_trapdoors,
         }
+
+    def verify_matched_nodes(self, nodes):
+        """Phase 5 Step 1 (Theorem 6/7): verify that every returned
+        aggregation-bearing node is included under its claimed index
+        root before its ciphertext is trusted/aggregated.
+
+        Each node must carry the fields blockchain_edge.py attaches:
+        search_tag, sigma, CT_v, Cnt_u, pi_u, root (Eq. 22-23). Uses a
+        single shared Merkle multi-proof across all nodes when every
+        node reports the same root (the common case: one query epoch),
+        falling back to per-node verify_proof otherwise.
+
+        Raises ValueError naming the first node that fails verification
+        (omitted, substituted, or tampered aggregation ciphertext).
+        Returns True if every node verifies.
+        """
+        if not nodes:
+            return True
+
+        required = ("search_tag", "sigma", "CT_v", "Cnt_u", "pi_u", "root")
+        for n in nodes:
+            missing = [f for f in required if f not in n]
+            if missing:
+                raise ValueError(
+                    f"Node {n.get('l')}-{n.get('r')} missing verification "
+                    f"field(s) {missing}; cannot check integrity"
+                )
+
+        def leaf_str(n):
+            return f"{n['search_tag']}|{n['sigma']}|{n['CT_v']}|{n['Cnt_u']}"
+
+        roots = {n["root"] for n in nodes}
+        if len(roots) == 1 and "multi_proof" in nodes[0]:
+            # Single shared multi-proof covering every returned node.
+            root = roots.pop()
+            leaves = {n["multi_proof_index"]: leaf_str(n) for n in nodes}
+            if not MerkleTree.verify_multi_proof(leaves, nodes[0]["multi_proof"], root):
+                raise ValueError("Merkle multi-proof verification failed "
+                                  "for returned node set")
+            return True
+
+        for n in nodes:
+            if not MerkleTree.verify_proof(leaf_str(n), n["pi_u"], n["root"]):
+                raise ValueError(
+                    f"Merkle proof verification failed for node "
+                    f"[{n.get('l')},{n.get('r')}] -- omitted, substituted, "
+                    f"or tampered aggregation ciphertext"
+                )
+        return True
 
     def decrypt_aggregate(self, ct_sum_str, ct_cnt_str):
         """Phase 5 Step 4: Decrypt aggregate with sk_AHE (EC-ElGamal BSGS)."""
