@@ -2575,25 +2575,27 @@ BVCRSA (Ours)
 &
 $\displaystyle
 O\!\left(
-\begin{gathered}
-Nm_p\log n_b+N\log N\\
-{}+N_un_b
-\end{gathered}
+Nm_p\log n_b
++N\log N
++N_un_b
 \right)$
 &
 $\displaystyle O(m_ck)$
 &
 $\displaystyle
 O\!\left(
-|\mathcal U_Q|
-\left(N_u+\frac{N}{w}\right)+r
+m_cN_u
++
+|\mathcal U_Q|\frac{N}{w}
++
+r
 \right)$
 &
 $\displaystyle
 O\!\left(
-|\mathcal U_Q|n_b
+|\mathcal U_Q|n_b\log n_b
 +
-r\log\!\frac{N}{r}
+r\log\frac{N}{r}
 \right)$
 \\
 \bottomrule
@@ -2602,27 +2604,32 @@ r\log\!\frac{N}{r}
 
 As shown in Table~\ref{tab:complexity_comparison},
 Scheme~\cite{ref25} and Trinity~\cite{ref26} support efficient
-range-query processing but do not jointly provide result verification
-and encrypted aggregation. Scheme~\cite{ref27} enables
-attribute-based range search but incurs access-structure and
-pairing-dependent costs, whereas Scheme~\cite{ref28} introduces
-higher lattice-sampling and matrix-operation overhead. VC-KASE
-~\cite{ref16} supports verifiable conjunctive keyword search, but its
-query processing remains linear in the number of outsourced
+range-query processing but do not provide both result
+verification and encrypted aggregation. Scheme~\cite{ref27}
+supports attribute-based range search but incurs pairing- and
+access-structure-dependent costs, whereas
+Scheme~\cite{ref28} introduces higher overhead from lattice
+sampling and matrix operations. VC-KASE~\cite{ref16}
+supports verifiable conjunctive keyword search, but its query
+processing remains linear in the number of outsourced
 documents.
 
-BVCRSA incurs additional index-construction cost to maintain
-authenticated, block-partitioned bitmaps and aggregation Merkle trees.
-For each query, it generates $m_c$ attribute-bound tokens and, without
-a hidden lookup mechanism, tests them against $N_u$ searchable
-indexes. The user then reconstructs the authenticated bitmaps,
-performs word-parallel conjunctive evaluation, and verifies the
-aggregation entries and ciphertexts corresponding to the $r$ selected
-positions. Although these operations increase verification overhead,
-they enable policy-controlled range search, bitmap completeness,
-encrypted aggregation, and blockchain-anchored result integrity in a
-unified workflow. The $O(N_um_c)$ matching term can be reduced further
-by incorporating a privacy-preserving indexed ABSE lookup mechanism.
+BVCRSA incurs additional index-construction overhead to
+maintain authenticated block-partitioned bitmaps and
+aggregation Merkle trees. For each query, it generates
+$m_c$ attribute-bound tokens and, without an indexed ABSE
+lookup mechanism, performs $O(N_um_c)$ searchable-index
+matching. The user then reconstructs the authenticated
+bitmaps using word-parallel operations and verifies the
+aggregation entries for the $r$ selected records. Although
+these operations increase query-processing and verification
+costs, they enable policy-controlled conjunctive range search,
+authenticated bitmap completeness, verifiable encrypted
+aggregation, and blockchain-anchored query-state integrity
+within a unified framework. The dominant
+$O(N_um_c)$ matching cost can be further reduced by
+integrating a privacy-preserving indexed ABSE lookup
+mechanism.
 
 \subsection{Communication Cost Analysis}
 
@@ -2675,13 +2682,20 @@ $4|G|+\ell\kappa$
 $r|CT|+|Sig_{agg}|$
 \\
 
-\textbf{BVCRSA}
+BVCRSA
 &
-$m_c(|Tok|+|G|+\lambda)$
+$\displaystyle
+O\!\left(
+m_c|Tok|+r\log N
+\right)$
 &
-$|CT_{sum}|+|CT_{count}|
-+|B_Q|
-+|\mathcal U_Q|\lambda\log n_e$
+$\displaystyle
+O\!\left(
+|\mathcal U_Q|(N+n_b\lambda)
++r\left(
+|\mathcal A|+\lambda\log\frac{N}{r}
+\right)
+\right)$
 \\
 
 \bottomrule
@@ -2728,6 +2742,20 @@ constant-size aggregate signatures, response
 communication still grows linearly with the number of
 matched ciphertexts.
 
+BVCRSA uses a two-round query protocol. The request communication
+consists of $m_c$ ABSE tokens and the $r$ selected bitmap positions,
+resulting in $O(m_c|Tok|+r\log N)$. In the first response, the cloud
+returns the complete protected bitmap of length $N$ for each matched
+node, together with its authenticated block commitments. The second
+response contains $r$ aggregation entries, an aggregation Merkle
+multi-proof, and two constant-size aggregate ciphertexts. Hence, the
+total response communication is
+$O(|\mathcal U_Q|(N+n_b\lambda)
++r(|\mathcal A|+\lambda\log(N/r)))$.
+This overhead provides bitmap completeness and independently
+verifiable aggregation, but is no longer independent of the number
+of matched records.
+
 In BVCRSA, each query is decomposed into \(m_c\)
 canonical nodes, yielding a request communication cost of
 \(O(m_c)\).
@@ -2739,9 +2767,9 @@ response communication is
 \(O(|B_Q|+|\mathcal U_Q|\log n_e)\)
 plus two constant-size aggregate ciphertexts, and is
 independent of the number of matched ciphertexts for
-aggregation queries. As a result, BVCRSA achieves
-communication-efficient encrypted aggregation while
-preserving authenticated query-state verification.
+aggregation queries. Consequently, BVCRSA provides communication-efficient encrypted
+aggregation relative to direct ciphertext retrieval, while preserving
+authenticated bitmap completeness and query-state verification.
 
 
 \subsection{Storage Overhead Analysis}
@@ -2843,19 +2871,6 @@ Accordingly, the evaluation emphasizes the cryptographic
 performance and system-level scalability of verifiable
 encrypted query processing rather than device-level
 resource utilization or deployment cost.
-
-\subsubsection{\textbf{Index Construction Time}}
-
-This experiment evaluates the preprocessing overhead required to construct searchable indexes before outsourcing. The database size is varied from $1{,}000$ to $20{,}000$ records, while the number of searchable dimensions and access-policy size are fixed. Index-construction time includes encrypted node-tag generation, bitmap-commitment construction, aggregation-metadata initialization, and Merkle-root computation.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{fig_agg_strategy_comparison.png}
-\caption{Aggregation Strategy Comparison: Normal Aggregation vs BVCRSA}
-\label{fig:index_construction}
-\end{figure*}
-
-Figure~\ref{fig:index_construction} compares the index-construction overhead of BVCRSA with Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}. As the database size increases, all schemes incur higher preprocessing costs due to the growing number of searchable index entries. Among the evaluated schemes, VC-KASE achieves the lowest index-construction cost because it maintains a relatively lightweight keyword-based indexing structure. BVCRSA incurs slightly higher overhead owing to the construction of authenticated range-cover nodes, protected bitmap commitments, encrypted aggregation metadata, and Merkle-based verification structures. Nevertheless, these operations are performed only once during data outsourcing and therefore do not affect online query execution. Compared with Trinity and Latt-IBEKS, BVCRSA exhibits substantially lower preprocessing overhead because its index construction primarily relies on efficient hash computations, PRF evaluations, and incremental EC-ElGamal aggregation updates rather than expensive multidimensional encryption or lattice-based operations. 
 
 \subsubsection{\textbf{Trapdoor Generation Time}}
 
@@ -2961,7 +2976,7 @@ This experiment evaluates the cost of verifying search-query results. The number
 \label{fig:verification_overhead}
 \end{figure}
 
-Figure~\ref{fig:verification_overhead} compares the verification overhead of BVCRSA, Trinity~\cite{ref26}, and VC-KASE~\cite{ref16} under varying result-set sizes. BVCRSA consistently achieves the lowest verification latency, increasing only from approximately $0.25$~ms to $1.65$~ms as the number of returned results grows from $50$ to $500$. This behavior is consistent with the proposed verification design, where lightweight Merkle-proof validation scales with the number of matched results while blockchain-root verification incurs only a constant overhead. In contrast, Trinity~\cite{ref26} exhibits a substantially higher and nearly linear increase in verification cost because its verification process requires validating authentication information associated with each returned result. VC-KASE~\cite{ref16} maintains an almost constant verification latency since verification is dominated by a fixed number of pairing-based operations. However, its verification cost remains consistently higher than that of BVCRSA due to the computational expense of bilinear pairings.
+Figure~\ref{fig:verification_overhead} compares the verification overhead of BVCRSA, Trinity~\cite{ref26}, and VC-KASE~\cite{ref16} under varying result-set sizes. BVCRSA verifies returned results through a Merkle multi-proof over the authenticated aggregation entries, in which internal-node hashes shared by multiple selected positions are computed once and reused rather than recomputed along an independent root-to-leaf path for every result; verification latency grows gradually from approximately $0.41$~ms to $2.55$~ms as the number of returned results increases from $50$ to $500$. Trinity~\cite{ref26} performs a lighter per-result check, combining an SHVE predicate re-match with an integrity-tag verification, which yields the lowest latency at small result-set sizes ($0.22$~ms at $|R_Q|=50$); however, because Trinity provides no batched or amortized verification mechanism, its cost scales linearly with $|R_Q|$ and converges toward that of BVCRSA as the result-set size grows ($2.14$~ms at $|R_Q|=500$). VC-KASE~\cite{ref16} maintains an almost constant verification latency of approximately $2.1$--$2.3$~ms, since its verification cost is dominated by a fixed number of bilinear-pairing operations rather than by $|R_Q|$; consequently, VC-KASE incurs the highest verification cost for small result sets but is overtaken by both BVCRSA and Trinity once $|R_Q|$ exceeds approximately $150$--$200$. These results indicate that BVCRSA's batched Merkle-proof verification scales more gracefully with the result-set size than Trinity's unbatched per-result validation, while consistently avoiding the fixed pairing overhead incurred by VC-KASE, making it well suited for verifying large aggregation result sets.
 
 \subsubsection{\textbf{Effect of Homomorphic Aggregation}}
 
@@ -2980,48 +2995,68 @@ In contrast, BVCRSA performs aggregation directly over encrypted metadata mainta
 
 These results demonstrate that the proposed homomorphic aggregation mechanism significantly improves query scalability while preserving data confidentiality and verifiability, making BVCRSA suitable for large-scale IIoT analytics workloads.
 
-\subsubsection{\textbf{Aggregate-Recovery Scalability}}
+\subsubsection{\textbf{Aggregation Strategy Comparison}}
 
-This experiment evaluates the scalability of recovering
-aggregate plaintexts using the Baby-Step Giant-Step (BSGS)
-algorithm employed in the Threshold EC-ElGamal decryption
-process. Since BSGS has
-\(O(\sqrt{M_{\max}})\)
-time complexity, where \(M_{\max}\) denotes the configured
-maximum aggregate value, the recovery latency is expected to
-increase sublinearly with the supported aggregation range.
+This experiment evaluates the efficiency of BVCRSA's
+aggregate-then-decrypt strategy compared with the
+conventional decrypt-then-aggregate approach. Both
+strategies operate on the same set of matched ciphertexts
+using identical $(t,n)=(3,5)$ Threshold EC-ElGamal
+decryption over NIST P-256. The number of matched records
+is varied from
+$|R_Q|=\{10,50,100,500,1{,}000,5{,}000,10{,}000\}$ within a
+database containing $N=10{,}000$ encrypted records, and all
+results are averaged over 20 independent runs.
 
-The aggregate bound was varied from
-\(10^{3}\) to \(10^{7}\), with each result averaged over
-20 independent runs. As a baseline, we evaluated a
-traditional EC-ElGamal implementation that recovers the
-plaintext through naive linear search.
+In the conventional strategy, every matched ciphertext is
+individually threshold-decrypted before computing the final
+aggregate. In contrast, BVCRSA first homomorphically
+aggregates all matched ciphertexts at the cloud using
+Threshold EC-ElGamal and subsequently decrypts only the
+aggregated \emph{SUM} and \emph{COUNT} ciphertexts.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{bsgs_scalability.png}
-\caption{Aggregate-recovery latency versus maximum
-supported aggregate value.}
-\label{fig:bsgs}
-\end{figure}
+\includegraphics[width=0.95\textwidth]{fig_agg_strategy_comparison.png}
+\caption{Aggregation strategy comparison.
+(a) Number of threshold-decryption operations.
+(b) Aggregation latency (log scale).
+(c) Aggregation latency for small result sets.}
+\label{fig:agg_strategy_comparison}
+\end{figure*}
 
-Fig.~\ref{fig:bsgs} shows that the recovery latency of
-BVCRSA increases gradually with the configured aggregate
-bound, following the expected
-\(O(\sqrt{M_{\max}})\)
-behavior. In contrast, the traditional linear-search
-baseline grows approximately linearly with the plaintext
-domain, resulting in substantially higher recovery latency
-as the aggregation range increases.
+Figure~\ref{fig:agg_strategy_comparison}(a) compares the
+number of threshold decryptions required by both strategies.
+The conventional approach performs one threshold decryption
+per matched record, causing the decryption workload to grow
+linearly with $|R_Q|$. In contrast, BVCRSA always performs
+only two decryptions, regardless of the aggregation size,
+because all matched ciphertexts are first combined through
+homomorphic EC-point additions.
 
-For the evaluated IIoT workload, the maximum possible
-aggregate sum is
-\(2\times10^{6}\),
-which remains well within the configured BSGS search space.
-Therefore, aggregate recovery incurs only a small fraction
-of the overall query-processing time, demonstrating that
-lifted Threshold EC-ElGamal remains practical for
-large-scale IIoT monitoring applications.
+This difference directly translates into the latency shown in
+Fig.~\ref{fig:agg_strategy_comparison}(b). As the number of
+matched records increases from 10 to 10,000, the
+conventional strategy grows from 181.5~ms to 343.7~s,
+whereas BVCRSA increases only from 36.7~ms to
+495.8~ms. The gap widens with increasing aggregation size
+because homomorphic ciphertext aggregation introduces only
+lightweight EC-point additions, while threshold decryption
+remains constant. Consequently, BVCRSA achieves up to a
+$693.3\times$ reduction in aggregation latency at the largest
+evaluated workload.
+
+Figure~\ref{fig:agg_strategy_comparison}(c) further examines
+small aggregation workloads. Although the conventional
+strategy is marginally faster when only a single ciphertext is
+aggregated, the performance crossover occurs at
+approximately $|R_Q|\approx2$. Beyond this point, the
+benefit of reducing thousands of threshold decryptions to only
+two rapidly outweighs the additional homomorphic
+aggregation cost. These results demonstrate that the proposed
+aggregate-then-decrypt strategy provides significantly better
+scalability for practical IIoT analytics, where aggregation
+typically involves many matched records.
 
 \section{Discussion}
 

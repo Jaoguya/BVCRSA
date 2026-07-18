@@ -3035,7 +3035,7 @@ This experiment evaluates the cost of verifying search-query results. The number
 \label{fig:verification_overhead}
 \end{figure}
 
-Figure~\ref{fig:verification_overhead} compares the verification overhead of BVCRSA, Trinity~\cite{ref26}, and VC-KASE~\cite{ref16} under varying result-set sizes. BVCRSA consistently achieves the lowest verification latency, increasing only from approximately $0.25$~ms to $1.65$~ms as the number of returned results grows from $50$ to $500$. This behavior is consistent with the proposed verification design, where lightweight Merkle-proof validation scales with the number of matched results while blockchain-root verification incurs only a constant overhead. In contrast, Trinity~\cite{ref26} exhibits a substantially higher and nearly linear increase in verification cost because its verification process requires validating authentication information associated with each returned result. VC-KASE~\cite{ref16} maintains an almost constant verification latency since verification is dominated by a fixed number of pairing-based operations. However, its verification cost remains consistently higher than that of BVCRSA due to the computational expense of bilinear pairings.
+Figure~\ref{fig:verification_overhead} compares the verification overhead of BVCRSA, Trinity~\cite{ref26}, and VC-KASE~\cite{ref16} under varying result-set sizes. BVCRSA verifies returned results through a Merkle multi-proof over the authenticated aggregation entries, in which internal-node hashes shared by multiple selected positions are computed once and reused rather than recomputed along an independent root-to-leaf path for every result; verification latency grows gradually from approximately $0.41$~ms to $2.55$~ms as the number of returned results increases from $50$ to $500$. Trinity~\cite{ref26} performs a lighter per-result check, combining an SHVE predicate re-match with an integrity-tag verification, which yields the lowest latency at small result-set sizes ($0.22$~ms at $|R_Q|=50$); however, because Trinity provides no batched or amortized verification mechanism, its cost scales linearly with $|R_Q|$ and converges toward that of BVCRSA as the result-set size grows ($2.14$~ms at $|R_Q|=500$). VC-KASE~\cite{ref16} maintains an almost constant verification latency of approximately $2.1$--$2.3$~ms, since its verification cost is dominated by a fixed number of bilinear-pairing operations rather than by $|R_Q|$; consequently, VC-KASE incurs the highest verification cost for small result sets but is overtaken by both BVCRSA and Trinity once $|R_Q|$ exceeds approximately $150$--$200$. These results indicate that BVCRSA's batched Merkle-proof verification scales more gracefully with the result-set size than Trinity's unbatched per-result validation, while consistently avoiding the fixed pairing overhead incurred by VC-KASE, making it well suited for verifying large aggregation result sets.
 
 \subsubsection{\textbf{Effect of Homomorphic Aggregation}}
 
@@ -3097,13 +3097,13 @@ homomorphic EC-point additions.
 This difference directly translates into the latency shown in
 Fig.~\ref{fig:agg_strategy_comparison}(b). As the number of
 matched records increases from 10 to 10,000, the
-conventional strategy grows from 316.8~ms to 196.1~s,
-whereas BVCRSA increases only from 63.5~ms to
-292.4~ms. The gap widens with increasing aggregation size
+conventional strategy grows from 181.5~ms to 343.7~s,
+whereas BVCRSA increases only from 36.7~ms to
+495.8~ms. The gap widens with increasing aggregation size
 because homomorphic ciphertext aggregation introduces only
 lightweight EC-point additions, while threshold decryption
 remains constant. Consequently, BVCRSA achieves up to a
-$670.5\times$ reduction in aggregation latency at the largest
+$693.3\times$ reduction in aggregation latency at the largest
 evaluated workload.
 
 Figure~\ref{fig:agg_strategy_comparison}(c) further examines
