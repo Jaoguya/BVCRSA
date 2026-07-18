@@ -185,57 +185,53 @@ encrypted analytics for outsourced IIoT data remains an open
 problem.
 
 To address these challenges, we propose
-\emph{Blockchain-based Verifiable Conjunctive Range Search
-and Aggregation (BVCRSA)}, a unified framework for secure and
-verifiable encrypted IIoT analytics. BVCRSA combines an
-authenticated hierarchical range-cover index, protected bitmap
-filtering, and cross-dimensional bitmap intersection to
-support efficient conjunctive range search. It further
-integrates attribute-based searchable encryption with
-Threshold EC-ElGamal homomorphic encryption to enable
-fine-grained authorized aggregation directly over encrypted
-records. Finally, a blockchain-assisted Verifiable
-Query-State Anchoring (VQSA) mechanism authenticates
-searchable-index states, bitmap commitments, and aggregation
-metadata through Merkle-based verification, providing
-authenticated integrity, completeness, freshness, rollback
-resistance, and cryptographic binding between aggregation
-ciphertexts and the verified matched record set without
-requiring zero-knowledge proofs or trusted hardware.
+\emph{Blockchain-based Verifiable Conjunctive Range Search and
+Aggregation (BVCRSA)}, a unified framework for secure and verifiable
+analytics over outsourced IIoT data. BVCRSA combines authenticated
+hierarchical range-cover indexing with protected, block-partitioned
+bitmaps to support conjunctive multi-dimensional range queries. It
+integrates attribute-based searchable encryption with Threshold
+EC-ElGamal to enforce fine-grained access policies and compute
+encrypted sum, count, and average statistics over verified query
+results. Furthermore, its Verifiable Query-State Anchoring (VQSA)
+mechanism binds index states, bitmap commitments, and aggregation
+metadata to signed blockchain-anchored Merkle roots. This construction
+provides integrity, completeness relative to the gateway-committed
+state, freshness, rollback resistance, and verifiable aggregation
+without requiring zero-knowledge proofs or trusted hardware.
 
-The main contributions of this paper are summarized as
-follows:
+The main contributions are summarized as follows:
 
 \begin{itemize}
 
-\item We propose \textbf{BVCRSA}, a unified framework that
-jointly supports verifiable conjunctive range search,
-fine-grained access control, encrypted aggregation, and
-blockchain-assisted query-state verification over outsourced
-IIoT data.
+\item We propose \textbf{BVCRSA}, a query-centric framework that
+jointly supports policy-controlled conjunctive range search,
+threshold-encrypted aggregation, verifiable partial decryption, and
+blockchain-assisted query-state verification for outsourced IIoT data.
 
-\item We design an \textbf{authenticated hierarchical
-range-cover indexing mechanism} that combines canonical
-interval decomposition with protected bitmap filtering and
-cross-dimensional bitmap intersection to enable efficient
-multi-dimensional range-query processing.
+\item We design an \textbf{authenticated hierarchical range-cover
+index} that combines minimal canonical interval decomposition with
+versioned, block-partitioned bitmaps. The construction supports
+cross-dimensional bitmap evaluation and enables users to detect
+omitted, duplicated, truncated, or modified bitmap blocks.
 
 \item We develop a \textbf{bitmap-aware encrypted aggregation
-mechanism} that tightly couples searchable indexing with
-Threshold EC-ElGamal homomorphic encryption, enabling direct
-computation of sum, count, and average statistics over
-authorized query results without exposing aggregation keys.
+mechanism} that binds each authenticated bitmap position to a unique
+Threshold EC-ElGamal aggregation entry. This enables verifiable
+computation of encrypted sum and count values, from which the average
+is recovered after threshold decryption, while preventing omitted,
+inserted, or duplicate contributions.
 
-\item We introduce a \textbf{Verifiable Query-State Anchoring
-(VQSA)} mechanism that authenticates searchable-index states,
-bitmap commitments, and aggregation metadata using compact
-blockchain-anchored Merkle commitments, providing query-state
-integrity, authenticated completeness, freshness, rollback
-resistance, and cryptographic binding between aggregation
-ciphertexts and the verified matched record set.
+\item We introduce \textbf{Verifiable Query-State Anchoring (VQSA)},
+which authenticates index roots, bitmap parameters, and aggregation
+states through signed blockchain-anchored Merkle commitments. VQSA,
+together with token-bound matching, aggregation multi-proofs, and
+independent homomorphic recomputation, provides query-state integrity,
+authenticated completeness, freshness, rollback resistance, and
+cryptographic consistency between the selected result and returned
+aggregate ciphertexts.
 
 \end{itemize}
-
 
 \section{Related Work}
 \label{sec:related}
@@ -1001,14 +997,12 @@ Tag_i
 
 The Edge Gateway accepts $\mathcal P_i$ only if
 \begin{equation}
-\mathsf{HMAC.Verify}_{K_{\mathrm{HMAC}}^{(i)}}
-\left(
-\mathsf{enc}(\mathcal P_i\setminus\{Tag_i\}),Tag_i
-\right)=1
-\land
-seq_i>seq_i^{\mathrm{last}}
-\land
-\mathsf{Valid}(Meta_i)=1.
+\begin{split}
+&\mathsf{HMAC.Verify}_{K_{\mathrm{HMAC}}^{(i)}}
+\left(\mathsf{enc}(\mathcal P_i\setminus\{Tag_i\}),Tag_i\right)=1 \\
+&\quad\land\; seq_i>seq_i^{\mathrm{last}} \\
+&\quad\land\; \mathsf{Valid}(Meta_i)=1.
+\end{split}
 \label{eq:p2-packet-verification}
 \end{equation}
 It atomically registers $rid_i$, assigns a unique global bitmap
@@ -1041,15 +1035,10 @@ F(K_{\mathrm{sel}},D_j\parallel u),
 \end{equation}
 and constructs
 \begin{equation}
-I_u
-=
-\mathsf{ABSE.Index}
-(PP,\tau_u,\mathcal P_u,e_q),
-\qquad
-C_u^K
-=
-\mathsf{ABSE.Enc}
-(PP,K_u,\mathcal P_u,e_q).
+\begin{split}
+I_u &= \mathsf{ABSE.Index}(PP,\tau_u,\mathcal P_u,e_q), \\
+C_u^K &= \mathsf{ABSE.Enc}(PP,K_u,\mathcal P_u,e_q).
+\end{split}
 \label{eq:p2-policy-index}
 \end{equation}
 Thus, only a user satisfying $\mathcal P_u$ can match $I_u$ and
@@ -1103,13 +1092,14 @@ Root_u^{\mathrm{bmp}}
 \left(
 \mathsf{Sort}_{b}
 \{\sigma_{u,b}^{\mathrm{bmp}}\}_{b=1}^{n_{e_q}^{\mathrm{blk}}}
-\right),\\
+\right),\\[4pt]
 \sigma_u^{\mathrm{idx}}
 &=
 H\bigl(
 \mathtt{IDX}\parallel e_q\parallel D_j\parallel u
 \parallel I_u\parallel C_u^K
-\parallel N_{e_q}\parallel\beta
+\parallel N_{e_q}\parallel\beta\\
+&\qquad\quad
 \parallel n_{e_q}^{\mathrm{blk}}
 \parallel Root_u^{\mathrm{bmp}}
 \bigr).
@@ -1197,14 +1187,15 @@ Root_{e_q},ts_{e_q},\sigma_{\mathrm{DO}})
 \end{equation}
 on the permissioned blockchain and outsources
 \begin{equation}
+\begin{split}
 \mathcal O_{e_q}
-=
-\left\{
-Hdr_i,CT_{\mathrm{AES}}^{(i)},C_i^{\mathrm{rec}},
-I_u,C_u^K,\widetilde B_{u,b},\nu_{u,b},
-\mathcal A_i,\sigma_{u,b}^{\mathrm{bmp}},
-\sigma_u^{\mathrm{idx}},\sigma_i^{\mathrm{agg}}
-\right\}
+= \bigl\{
+Hdr_i,\, CT_{\mathrm{AES}}^{(i)},\, C_i^{\mathrm{rec}},\,
+I_u,\, C_u^K,\, \widetilde B_{u,b},\, \nu_{u,b},\\
+\mathcal A_i,\, \sigma_{u,b}^{\mathrm{bmp}},\,
+\sigma_u^{\mathrm{idx}},\, \sigma_i^{\mathrm{agg}}
+\bigr\}
+\end{split}
 \label{eq:p2-outsourcing}
 \end{equation}
 to the cloud. The gateway retains $K_{\mathrm{sel}}$, while users
@@ -1231,13 +1222,12 @@ Q
 For each dimension $D_j$, the user computes the minimal canonical
 cover
 \begin{equation}
+\begin{aligned}
 \mathcal{C}_j
-=
-\mathsf{Cover}(D_j,[a_j,b_j])
-=
-\{u_{j,1},\ldots,u_{j,\ell_j}\},
-\qquad
-\ell_j=O(\log|D_j|).
+&= \mathsf{Cover}(D_j,[a_j,b_j])
+= \{u_{j,1},\ldots,u_{j,\ell_j}\}, \\
+\ell_j &= O(\log|D_j|).
+\end{aligned}
 \label{eq:p3-canonical-cover}
 \end{equation}
 Nodes within $\mathcal{C}_j$ are evaluated disjunctively, whereas
@@ -1421,16 +1411,17 @@ Root_{e_q}
 H\bigl(
 \mathtt{EPOCH}\parallel e_q
 \parallel N_{e_q}\parallel\beta
-\parallel n_{e_q}^{\mathrm{blk}}
+\parallel n_{e_q}^{\mathrm{blk}}\\
+&\qquad\quad
 \parallel Root_{e_q}^{\mathrm{idx}}
 \parallel Root_{e_q}^{\mathrm{agg}}
-\bigr),\\
+\bigr),\\[4pt]
 \mathsf{DS.Verify}_{pk_{\mathrm{DO}}}
-\bigl(
+&\bigl(
 H(Root_{e_q}\parallel e_q\parallel ts_{e_q}),
 \sigma_{\mathrm{DO}}
 \bigr)
-&=1.
+=1.
 \end{aligned}
 \label{eq:p4-epoch-verification}
 \end{equation}
@@ -1444,14 +1435,15 @@ node satisfying
 \begin{aligned}
 \chi_{j,i}
 &=
-H(e_q\parallel qid\parallel\mathsf{enc}(Tok_{j,i})),\\
+H(e_q\parallel qid\parallel\mathsf{enc}(Tok_{j,i})),\\[4pt]
 \mathsf{ABSE.Test}
-(PP,I_u,Tok_{j,i},e_q,qid)
-&=1,\\
+(PP,I_u,Tok_{j,i},\\
+&\qquad e_q,qid)
+=1,\\[4pt]
 \mathsf{MerkleVerify}
-(\sigma_u^{\mathrm{idx}},\pi_u^{\mathrm{idx}},
-Root_{e_q}^{\mathrm{idx}})
-&=1.
+(\sigma_u^{\mathrm{idx}},\pi_u^{\mathrm{idx}},\\
+&\qquad Root_{e_q}^{\mathrm{idx}})
+=1.
 \end{aligned}
 \label{eq:p4-match-verification}
 \end{equation}
@@ -1486,17 +1478,11 @@ F(K_u,b\parallel\nu_{u,b}),|B_{u,b}|
 After concatenating the blocks and truncating each bitmap to
 $N_{e_q}$ bits, it computes
 \begin{equation}
-B_{D_j}
-=
-\bigvee_{u\in\mathcal M_j}B_u,
-\qquad
-B_Q
-=
-\bigwedge_{j=1}^{d}B_{D_j},
-\qquad
-\mathcal S_Q
-=
-\{pos_i:B_Q[pos_i]=1\}.
+\begin{aligned}
+B_{D_j} &= \bigvee_{u\in\mathcal M_j}B_u, \\
+B_Q &= \bigwedge_{j=1}^{d}B_{D_j}, \\
+\mathcal S_Q &= \{pos_i:B_Q[pos_i]=1\}.
+\end{aligned}
 \label{eq:p4-conjunctive-result}
 \end{equation}
 Finally, it submits
@@ -1557,14 +1543,15 @@ H\bigl(
 \end{equation}
 and returns
 \begin{equation}
+\begin{split}
 \mathcal{Rsp}_Q^{(2)}
-=
-\left(
-e_q,qid,H(B_Q),
-CT_{\mathrm{sum}},CT_{\mathrm{count}},
-\{\mathcal{A}_i\}_{pos_i\in\mathcal{S}_Q},
-\pi_Q^{\mathrm{agg}},\Delta_Q
-\right).
+= \bigl(
+e_q,\, qid,\, H(B_Q),\,
+CT_{\mathrm{sum}},\, CT_{\mathrm{count}},\\
+\{\mathcal{A}_i\}_{pos_i\in\mathcal{S}_Q},\,
+\pi_Q^{\mathrm{agg}},\, \Delta_Q
+\bigr).
+\end{split}
 \label{eq:p4-final-response}
 \end{equation}
 Phase~5 verifies the aggregation multi-proof, returned positions,
@@ -1612,16 +1599,17 @@ Root_{e_q}
 H\bigl(
 \mathtt{EPOCH}\parallel e_q
 \parallel N_{e_q}\parallel\beta
-\parallel n_{e_q}^{\mathrm{blk}}
+\parallel n_{e_q}^{\mathrm{blk}}\\
+&\qquad\quad
 \parallel Root_{e_q}^{\mathrm{idx}}
 \parallel Root_{e_q}^{\mathrm{agg}}
-\bigr),\\
+\bigr),\\[4pt]
 \mathsf{DS.Verify}_{pk_{\mathrm{DO}}}
-\bigl(
+&\bigl(
 H(Root_{e_q}\parallel e_q\parallel ts_{e_q}),
 \sigma_{\mathrm{DO}}
 \bigr)
-&=1.
+=1.
 \end{aligned}
 \label{eq:p5-state-verification}
 \end{equation}
@@ -1821,16 +1809,16 @@ attribute-based KEM.
 
 The security objectives of BVCRSA are
 \begin{equation}
-\begin{aligned}
+\begin{split}
 &\mathsf{PacketAuthenticity}
 \wedge\mathsf{QueryPrivacy}
-\wedge\mathsf{DataConfidentiality}
-\wedge\mathsf{PolicyEnforcement}\\
-&{}\wedge\mathsf{ThresholdSecurity}
-\wedge\mathsf{AggregationCorrectness}
+\wedge\mathsf{DataConfidentiality}\\
+&\wedge\mathsf{PolicyEnforcement}
+\wedge\mathsf{ThresholdSecurity}\\
+&\wedge\mathsf{AggregationCorrectness}
 \wedge\mathsf{StateIntegrity}
 \wedge\mathsf{Freshness}.
-\end{aligned}
+\end{split}
 \label{eq:security-objectives}
 \end{equation}
 BVCRSA does not protect against denial of service, a malicious
@@ -1929,13 +1917,18 @@ although $\mathcal S_Q$ reveals the final matching positions.
 
 The honest-but-curious gateway additionally observes
 \begin{equation}
+\begin{aligned}
 \mathcal L_{\mathrm{GW}}
-=
+&=
 \left(
 \{Hdr_i,Meta_i,pos_i\},
-N_{e_q},\beta,n_{e_q}^{\mathrm{blk}},
+N_{e_q},\beta,n_{e_q}^{\mathrm{blk}}
+\right)\\
+&\quad
+\left(
 \mathsf{UpdPat},\text{bitmap memberships}
 \right).
+\end{aligned}
 \label{eq:gateway-leakage}
 \end{equation}
 Therefore, confidentiality against the gateway protects complete
@@ -1963,12 +1956,13 @@ Tag_i
 \end{equation}
 The gateway accepts $\mathcal P_i$ only if
 \begin{equation}
-\mathsf{HMAC.Verify}_{K_{\mathrm{HMAC}}^{(i)}}
+\begin{aligned}
+&\mathsf{HMAC.Verify}_{K_{\mathrm{HMAC}}^{(i)}}
 \left(
 \mathsf{enc}(\mathcal P_i\setminus\{Tag_i\}),Tag_i
-\right)=1
-\land
-seq_i>seq_i^{\mathrm{last}}.
+\right)=1\\
+&\qquad\land\; seq_i>seq_i^{\mathrm{last}} .
+\end{aligned}
 \label{eq:sec-packet-acceptance}
 \end{equation}
 Any modification to $rid_i$, $N_i$, $CT_{\mathrm{AES}}^{(i)}$,
@@ -2126,12 +2120,9 @@ none of them satisfies individually.
 For node $u$, successful token matching and key recovery require
 \begin{equation}
 \begin{aligned}
-\mathsf{ABSE.Test}
-(PP,I_u,Tok_{j,i},e_q,qid)&=1,\\
-K_u
-&=
-\mathsf{ABSE.Dec}
-(SK_{\mathcal A},C_u^K,e_q),
+&\mathsf{ABSE.Test}
+(PP,I_u,Tok_{j,i},e_q,qid)=1,\\
+&K_u=\mathsf{ABSE.Dec}(SK_{\mathcal A},C_u^K,e_q).
 \end{aligned}
 \label{eq:sec-node-authorization}
 \end{equation}
@@ -2243,12 +2234,14 @@ For each token $Tok_{j,i}$, the user requires exactly one returned
 node that passes both the local ABSE matching test and index
 Merkle-proof verification:
 \begin{equation}
-\mathsf{ABSE.Test}
-(PP,I_u,Tok_{j,i},e_q,qid)=1
-\;\land\;
+\begin{aligned}
+&\mathsf{ABSE.Test}
+(PP,I_u,Tok_{j,i},e_q,qid)=1 \\
+&\quad \land\;
 \mathsf{MerkleVerify}
 (\sigma_u^{\mathrm{idx}},\pi_u^{\mathrm{idx}},
-Root_{e_q}^{\mathrm{idx}})=1.
+Root_{e_q}^{\mathrm{idx}})=1 .
+\end{aligned}
 \label{eq:sec-node-match-verification}
 \end{equation}
 By ABSE correctness, canonical-keyword uniqueness, and Merkle-proof
@@ -2267,17 +2260,14 @@ missing, duplicated, reordered, truncated, or modified blocks are
 detected. After recovering and truncating every $B_u$ to the
 authenticated length $N_{e_q}$, the user computes
 \begin{equation}
+\begin{aligned}
 B_{D_j}
-=
-\bigvee_{u\in\mathcal M_j}B_u,
+&=\bigvee_{u\in\mathcal M_j}B_u,
 \qquad
-B_Q
-=
-\bigwedge_{j=1}^{d}B_{D_j},
-\qquad
+B_Q=\bigwedge_{j=1}^{d}B_{D_j},\\
 \mathcal S_Q
-=
-\{pos_i:B_Q[pos_i]=1\}.
+&=\{pos_i:B_Q[pos_i]=1\}.
+\end{aligned}
 \label{eq:sec-conjunctive-result}
 \end{equation}
 
@@ -2575,25 +2565,27 @@ BVCRSA (Ours)
 &
 $\displaystyle
 O\!\left(
-\begin{gathered}
-Nm_p\log n_b+N\log N\\
-{}+N_un_b
-\end{gathered}
+Nm_p\log n_b
++N\log N
++N_un_b
 \right)$
 &
 $\displaystyle O(m_ck)$
 &
 $\displaystyle
 O\!\left(
-|\mathcal U_Q|
-\left(N_u+\frac{N}{w}\right)+r
+m_cN_u
++
+|\mathcal U_Q|\frac{N}{w}
++
+r
 \right)$
 &
 $\displaystyle
 O\!\left(
-|\mathcal U_Q|n_b
+|\mathcal U_Q|n_b\log n_b
 +
-r\log\!\frac{N}{r}
+r\log\frac{N}{r}
 \right)$
 \\
 \bottomrule
@@ -2602,28 +2594,32 @@ r\log\!\frac{N}{r}
 
 As shown in Table~\ref{tab:complexity_comparison},
 Scheme~\cite{ref25} and Trinity~\cite{ref26} support efficient
-range-query processing but do not jointly provide result verification
-and encrypted aggregation. Scheme~\cite{ref27} enables
-attribute-based range search but incurs access-structure and
-pairing-dependent costs, whereas Scheme~\cite{ref28} introduces
-higher lattice-sampling and matrix-operation overhead. VC-KASE
-~\cite{ref16} supports verifiable conjunctive keyword search, but its
-query processing remains linear in the number of outsourced
+range-query processing but do not provide both result
+verification and encrypted aggregation. Scheme~\cite{ref27}
+supports attribute-based range search but incurs pairing- and
+access-structure-dependent costs, whereas
+Scheme~\cite{ref28} introduces higher overhead from lattice
+sampling and matrix operations. VC-KASE~\cite{ref16}
+supports verifiable conjunctive keyword search, but its query
+processing remains linear in the number of outsourced
 documents.
 
-BVCRSA incurs additional index-construction cost to maintain
-authenticated, block-partitioned bitmaps and aggregation Merkle trees.
-For each query, it generates $m_c$ attribute-bound tokens and, without
-a hidden lookup mechanism, tests them against $N_u$ searchable
-indexes. The user then reconstructs the authenticated bitmaps,
-performs word-parallel conjunctive evaluation, and verifies the
-aggregation entries and ciphertexts corresponding to the $r$ selected
-positions. Although these operations increase verification overhead,
-they enable policy-controlled range search, bitmap completeness,
-encrypted aggregation, and blockchain-anchored result integrity in a
-unified workflow. The $O(N_um_c)$ matching term can be reduced further
-by incorporating a privacy-preserving indexed ABSE lookup mechanism.
-
+BVCRSA incurs additional index-construction overhead to
+maintain authenticated block-partitioned bitmaps and
+aggregation Merkle trees. For each query, it generates
+$m_c$ attribute-bound tokens and, without an indexed ABSE
+lookup mechanism, performs $O(N_um_c)$ searchable-index
+matching. The user then reconstructs the authenticated
+bitmaps using word-parallel operations and verifies the
+aggregation entries for the $r$ selected records. Although
+these operations increase query-processing and verification
+costs, they enable policy-controlled conjunctive range search,
+authenticated bitmap completeness, verifiable encrypted
+aggregation, and blockchain-anchored query-state integrity
+within a unified framework. The dominant
+$O(N_um_c)$ matching cost can be further reduced by
+integrating a privacy-preserving indexed ABSE lookup
+mechanism.
 \subsection{Communication Cost Analysis}
 
 Table~\ref{tab:communication_cost} compares the communication
@@ -2675,13 +2671,22 @@ $4|G|+\ell\kappa$
 $r|CT|+|Sig_{agg}|$
 \\
 
-\textbf{BVCRSA}
+BVCRSA
 &
-$m_c(|Tok|+|G|+\lambda)$
+$\displaystyle
+O\!\left(
+m_c|Tok|+r\log N
+\right)$
 &
-$|CT_{sum}|+|CT_{count}|
-+|B_Q|
-+|\mathcal U_Q|\lambda\log n_e$
+$\displaystyle
+O\!\left(
+\begin{gathered}
+|\mathcal U_Q|(N+n_b\lambda)\\
+{}+r\left(
+|\mathcal A|+\lambda\log\frac{N}{r}
+\right)
+\end{gathered}
+\right)$
 \\
 
 \bottomrule
@@ -2728,6 +2733,20 @@ constant-size aggregate signatures, response
 communication still grows linearly with the number of
 matched ciphertexts.
 
+BVCRSA uses a two-round query protocol. The request communication
+consists of $m_c$ ABSE tokens and the $r$ selected bitmap positions,
+resulting in $O(m_c|Tok|+r\log N)$. In the first response, the cloud
+returns the complete protected bitmap of length $N$ for each matched
+node, together with its authenticated block commitments. The second
+response contains $r$ aggregation entries, an aggregation Merkle
+multi-proof, and two constant-size aggregate ciphertexts. Hence, the
+total response communication is
+$O(|\mathcal U_Q|(N+n_b\lambda)
++r(|\mathcal A|+\lambda\log(N/r)))$.
+This overhead provides bitmap completeness and independently
+verifiable aggregation, but is no longer independent of the number
+of matched records.
+
 In BVCRSA, each query is decomposed into \(m_c\)
 canonical nodes, yielding a request communication cost of
 \(O(m_c)\).
@@ -2739,9 +2758,9 @@ response communication is
 \(O(|B_Q|+|\mathcal U_Q|\log n_e)\)
 plus two constant-size aggregate ciphertexts, and is
 independent of the number of matched ciphertexts for
-aggregation queries. As a result, BVCRSA achieves
-communication-efficient encrypted aggregation while
-preserving authenticated query-state verification.
+aggregation queries. Consequently, BVCRSA provides communication-efficient encrypted
+aggregation relative to direct ciphertext retrieval, while preserving
+authenticated bitmap completeness and query-state verification.
 
 
 \subsection{Storage Overhead Analysis}
@@ -2844,19 +2863,6 @@ performance and system-level scalability of verifiable
 encrypted query processing rather than device-level
 resource utilization or deployment cost.
 
-\subsubsection{\textbf{Index Construction Time}}
-
-This experiment evaluates the preprocessing overhead required to construct searchable indexes before outsourcing. The database size is varied from $1{,}000$ to $20{,}000$ records, while the number of searchable dimensions and access-policy size are fixed. Index-construction time includes encrypted node-tag generation, bitmap-commitment construction, aggregation-metadata initialization, and Merkle-root computation.
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.95\textwidth]{fig_agg_strategy_comparison.png}
-\caption{Aggregation Strategy Comparison: Normal Aggregation vs BVCRSA}
-\label{fig:index_construction}
-\end{figure*}
-
-Figure~\ref{fig:index_construction} compares the index-construction overhead of BVCRSA with Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}. As the database size increases, all schemes incur higher preprocessing costs due to the growing number of searchable index entries. Among the evaluated schemes, VC-KASE achieves the lowest index-construction cost because it maintains a relatively lightweight keyword-based indexing structure. BVCRSA incurs slightly higher overhead owing to the construction of authenticated range-cover nodes, protected bitmap commitments, encrypted aggregation metadata, and Merkle-based verification structures. Nevertheless, these operations are performed only once during data outsourcing and therefore do not affect online query execution. Compared with Trinity and Latt-IBEKS, BVCRSA exhibits substantially lower preprocessing overhead because its index construction primarily relies on efficient hash computations, PRF evaluations, and incremental EC-ElGamal aggregation updates rather than expensive multidimensional encryption or lattice-based operations. 
-
 \subsubsection{\textbf{Trapdoor Generation Time}}
 
 This experiment evaluates the client-side overhead of trapdoor generation. The number of queried dimensions is varied from 1 to 5 while the database size is fixed at $N=10{,}000$ records. Trapdoor-generation time is measured as the elapsed time required to construct a valid search trapdoor before query submission.
@@ -2868,13 +2874,11 @@ This experiment evaluates the client-side overhead of trapdoor generation. The n
 \label{fig:trapdoor_generation}
 \end{figure}
 
-Figure~\ref{fig:trapdoor_generation} compares the trapdoor-generation overhead of BVCRSA with Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}. As the number of queried dimensions increases, all schemes incur additional cost due to the need to encode more query predicates.
+Figure~\ref{fig:trapdoor_generation} compares the trapdoor-generation latency of BVCRSA with Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}. As the number of queried dimensions increases, all schemes incur higher latency because additional range predicates must be encoded into the search token.
 
-BVCRSA exhibits only a modest increase in latency, from approximately $0.9$~ms to $2.2$~ms when the number of queried dimensions increases from 1 to 5. This efficiency arises from canonical interval decomposition combined with lightweight hash, PRF, and attribute-bound token-generation operations. Since each dimension contributes only a logarithmic number of interval nodes, the trapdoor cost scales gradually with query complexity.
+BVCRSA consistently achieves the lowest latency, increasing only from approximately $0.9$~ms to $2.2$~ms as the number of queried dimensions grows from 1 to 5. This behavior results from logarithmic canonical interval decomposition, which generates only a small number of canonical nodes per dimension, together with lightweight ABSE token generation based primarily on hash and PRF operations. Consequently, the trapdoor cost grows gradually with query complexity.
 
-In contrast, Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} incur higher overhead due to additional cryptographic operations during token construction. Overall, the results demonstrate that BVCRSA generates compact and efficient trapdoors while preserving query privacy and fine-grained access control, making it well suited for multidimensional encrypted range queries in large-scale IIoT environments.
-
-
+In contrast, Trinity~\cite{ref26}, ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} incur additional cryptographic overhead from secure range encoding, pairing and exponentiation operations, lattice computations, and verifiable token construction, respectively. These costs accumulate more rapidly as the query dimensionality increases. Overall, the results demonstrate that BVCRSA provides scalable and efficient trapdoor generation for multidimensional encrypted range queries while preserving fine-grained access control and query privacy.
 
 
 
@@ -2890,21 +2894,35 @@ Query-processing latency is a critical performance metric for outsourced searcha
 \label{fig:query_vs_range}
 \end{figure}
 
-Figure~\ref{fig:query_vs_range} evaluates the impact of
-range-query width on query-processing latency. As the
-queried interval expands from $10\%$ to $80\%$ of the
-searchable domain, BVCRSA maintains consistently low
+Figure~\ref{fig:query_vs_range} evaluates the effect of
+range-query width on query-processing latency. As the queried
+interval expands from $10\%$ to $80\%$ of the searchable
+domain, all schemes exhibit increasing latency because wider
+ranges match more index entries and records, resulting in
+additional search, filtering, and aggregation operations.
+
+BVCRSA consistently achieves the lowest query-processing
 latency, increasing only from approximately $0.04$~ms to
-$0.20$~ms. In contrast, VC-KASE~\cite{ref16} and
-Latt-IBEKS~\cite{ref28} require approximately $1$~ms,
-whereas ABSE-Range~\cite{ref27} and Trinity~\cite{ref26}
-incur approximately $40$~ms and $90$~ms, respectively.
-BVCRSA achieves this advantage through logarithmic
-canonical range-cover decomposition and efficient
-word-parallel bitmap evaluation, whereas Trinity relies on
-more computationally intensive encoded-index processing.
-Consequently, the query-processing overhead of BVCRSA
-increases only marginally as the query range expands.
+$0.20$~ms. This modest growth is attributed to the
+authenticated hierarchical range-cover index, which limits
+search to a logarithmic number of canonical nodes, together
+with word-parallel bitmap operations that efficiently merge
+matched nodes and evaluate conjunctive predicates.
+Although wider query ranges return more bitmap positions and
+aggregation entries, bitmap filtering substantially prunes
+non-matching records before Threshold EC-ElGamal
+aggregation, allowing the processing cost to grow gradually
+with query selectivity.
+
+In contrast, Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
+Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} exhibit
+higher latency because their search procedures require more
+computationally intensive cryptographic operations or less
+efficient index evaluation as the query range expands.
+Overall, the results demonstrate that BVCRSA scales
+efficiently with increasing query selectivity while maintaining
+low query-processing overhead for multidimensional encrypted
+IIoT analytics.
 
 
 \begin{figure}[t]
@@ -2914,7 +2932,26 @@ increases only marginally as the query range expands.
 \label{fig:query_vs_database}
 \end{figure}
 
-Figure~\ref{fig:query_vs_database} illustrates the scalability of query processing as the number of outsourced records increases from 1,000 to 100,000. BVCRSA consistently achieves the lowest query-processing latency, growing modestly from approximately 0.02 ms to 0.45 ms In comparison, Trinity [26] and ABSE-Range [27] exhibit significantly higher latencies, reaching over 14,000 ms and 74,000 ms (at $N=10,000$), respectively. Although Latt-IBEKS [28] and VC-KASE [16] perform substantially better than Trinity and ABSE-Range, their query times still grow to approximately 16.7 ms and 15.4 ms at the largest dataset size of 100,000 records. The superior scalability of BVCRSA stems from its authenticated range-cover index and highly efficient $O(N/w)$ conjunctive bitmap-filtering mechanism, which enables the direct identification of candidate intervals without requiring extensive linear ciphertext scanning.
+Figure~\ref{fig:query_vs_database} illustrates the scalability
+of query processing as the number of outsourced records
+increases from 1,000 to 100,000. All schemes incur higher
+latency because larger datasets require more search and
+filtering operations.
+
+BVCRSA consistently achieves the lowest latency, increasing
+only from approximately $0.02$~ms to $0.45$~ms. This
+efficiency stems from the authenticated hierarchical
+range-cover index and the $O(N/w)$ word-parallel bitmap
+intersection algorithm, which efficiently filters candidate
+records without scanning all ciphertexts. Consequently, the
+processing cost grows gradually with the database size.
+
+In contrast, Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
+Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} incur
+higher latency due to more expensive cryptographic operations
+or document-dependent search procedures. Overall, the results
+demonstrate that BVCRSA scales efficiently for large-scale
+encrypted IIoT analytics.
 
 \begin{figure}[t]
 \centering
@@ -2923,9 +2960,28 @@ Figure~\ref{fig:query_vs_database} illustrates the scalability of query processi
 \label{fig:query_vs_dimension}
 \end{figure}
 
-Figure~\ref{fig:query_vs_dimension} examines the scalability of conjunctive multidimensional queries by varying the number of queried dimensions from 1 to 5. BVCRSA exhibits only a gradual increase in query-processing latency, from approximately $0.04$~ms to $0.25$~ms. Although Latt-IBEKS~\cite{ref28} and VC-KASE~\cite{ref16} maintain relatively stable performance across dimensions, their query-processing costs remain substantially higher at approximately $18$--$20$~ms and $3$~ms, respectively. This demonstrates that BVCRSA efficiently supports multidimensional range queries through dimension-level bitmap intersections, allowing conjunctive query evaluation with minimal additional overhead.
+Figure~\ref{fig:query_vs_dimension} evaluates the scalability
+of conjunctive multidimensional queries as the number of
+queried dimensions increases from 1 to 5. All schemes incur
+higher latency because additional query predicates must be
+processed and combined.
 
-Overall, the results demonstrate that the combination of authenticated range-cover indexing and conjunctive bitmap filtering substantially reduces search overhead, enabling scalable and efficient multidimensional range-query processing for large-scale outsourced IIoT environments.
+BVCRSA exhibits only a gradual increase in latency, from
+approximately $0.04$~ms to $0.25$~ms. This scalability
+results from the authenticated range-cover index, which
+independently identifies matched canonical nodes for each
+dimension, followed by efficient word-parallel bitmap
+intersections to evaluate the conjunctive query. Consequently,
+each additional dimension introduces only modest processing
+overhead.
+
+In contrast, Latt-IBEKS~\cite{ref28} and
+VC-KASE~\cite{ref16} incur consistently higher latency due
+to their more expensive cryptographic search operations.
+Overall, the results demonstrate that BVCRSA efficiently
+supports scalable multidimensional range queries for
+large-scale outsourced IIoT analytics.
+
 
 \subsubsection{\textbf{Query Throughput}}
 
@@ -2947,9 +3003,27 @@ where $Q_{\mathrm{completed}}$ denotes the number of successfully processed quer
 \label{fig:query_throughput}
 \end{figure}
 
-Figure~\ref{fig:query_throughput}compares the query throughput of BVCRSA with Trinity [26], ABSE-Range [27], Latt-IBEKS [28], and VC-KASE [16] under varying query workloads. BVCRSA consistently achieves the highest throughput across all workload sizes, significantly outperforming the baseline schemes. This improvement is attributed to the authenticated range-cover index and the efficient O(N/w) conjunctive bitmap-filtering mechanism, which enable direct identification of matching records without extensive linear ciphertext scanning. In contrast, Trinity [26] and ABSE-Range [27] experience severely bottlenecked throughput due to the substantial overhead of index traversal and cryptographic matching required for each individual query, with ABSE-Range exhibiting the lowest throughput among the compared schemes. Latt-IBEKS [28] and VC-KASE [16] perform comparatively better than Trinity and ABSE-Range, but remain fundamentally constrained by the computational costs of lattice-based operations and pairing-based ciphertext testing, respectively.
+Figure~\ref{fig:query_throughput} compares the query
+throughput of BVCRSA with Trinity~\cite{ref26},
+ABSE-Range~\cite{ref27}, Latt-IBEKS~\cite{ref28}, and
+VC-KASE~\cite{ref16} under increasing query workloads.
+BVCRSA consistently achieves the highest throughput because
+its authenticated range-cover index directly locates matched
+canonical nodes, while the $O(N/w)$ word-parallel bitmap
+filtering processes multiple candidate records
+simultaneously. Consequently, query throughput degrades only
+slightly as the workload increases.
 
-Overall, the results demonstrate that BVCRSA sustains high query throughput under increasing workloads while maintaining low query latency. The combination of authenticated indexing and compact trapdoor evaluation makes BVCRSA well suited for large-scale IIoT environments where multiple users and applications continuously issue encrypted range queries.
+In contrast, Trinity~\cite{ref26} and
+ABSE-Range~\cite{ref27} suffer greater throughput reduction
+due to repeated cryptographic matching and index-processing
+operations for each query. Latt-IBEKS~\cite{ref28} and
+VC-KASE~\cite{ref16} achieve higher throughput than these
+schemes but remain limited by lattice-based computations and
+pairing-based ciphertext testing, respectively. Overall, the
+results demonstrate that BVCRSA sustains high throughput
+under heavy query workloads, making it suitable for
+large-scale outsourced IIoT analytics.
 
 \subsubsection{\textbf{Verification Overhead}}
 
@@ -2980,106 +3054,127 @@ In contrast, BVCRSA performs aggregation directly over encrypted metadata mainta
 
 These results demonstrate that the proposed homomorphic aggregation mechanism significantly improves query scalability while preserving data confidentiality and verifiability, making BVCRSA suitable for large-scale IIoT analytics workloads.
 
-\subsubsection{\textbf{Aggregate-Recovery Scalability}}
 
-This experiment evaluates the scalability of recovering
-aggregate plaintexts using the Baby-Step Giant-Step (BSGS)
-algorithm employed in the Threshold EC-ElGamal decryption
-process. Since BSGS has
-\(O(\sqrt{M_{\max}})\)
-time complexity, where \(M_{\max}\) denotes the configured
-maximum aggregate value, the recovery latency is expected to
-increase sublinearly with the supported aggregation range.
+\subsubsection{\textbf{Aggregation Strategy Comparison}}
 
-The aggregate bound was varied from
-\(10^{3}\) to \(10^{7}\), with each result averaged over
-20 independent runs. As a baseline, we evaluated a
-traditional EC-ElGamal implementation that recovers the
-plaintext through naive linear search.
+This experiment evaluates the efficiency of BVCRSA's
+aggregate-then-decrypt strategy compared with the
+conventional decrypt-then-aggregate approach. Both
+strategies operate on the same set of matched ciphertexts
+using identical $(t,n)=(3,5)$ Threshold EC-ElGamal
+decryption over NIST P-256. The number of matched records
+is varied from
+$|R_Q|=\{10,50,100,500,1{,}000,5{,}000,10{,}000\}$ within a
+database containing $N=10{,}000$ encrypted records, and all
+results are averaged over 20 independent runs.
 
-\begin{figure}[t]
+In the conventional strategy, every matched ciphertext is
+individually threshold-decrypted before computing the final
+aggregate. In contrast, BVCRSA first homomorphically
+aggregates all matched ciphertexts at the cloud using
+Threshold EC-ElGamal and subsequently decrypts only the
+aggregated \emph{SUM} and \emph{COUNT} ciphertexts.
+
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{bsgs_scalability.png}
-\caption{Aggregate-recovery latency versus maximum
-supported aggregate value.}
-\label{fig:bsgs}
-\end{figure}
+\includegraphics[width=0.95\textwidth]{fig_agg_strategy_comparison.png}
+\caption{Aggregation strategy comparison.
+(a) Number of threshold-decryption operations.
+(b) Aggregation latency (log scale).
+(c) Aggregation latency for small result sets.}
+\label{fig:agg_strategy_comparison}
+\end{figure*}
 
-Fig.~\ref{fig:bsgs} shows that the recovery latency of
-BVCRSA increases gradually with the configured aggregate
-bound, following the expected
-\(O(\sqrt{M_{\max}})\)
-behavior. In contrast, the traditional linear-search
-baseline grows approximately linearly with the plaintext
-domain, resulting in substantially higher recovery latency
-as the aggregation range increases.
+Figure~\ref{fig:agg_strategy_comparison}(a) compares the
+number of threshold decryptions required by both strategies.
+The conventional approach performs one threshold decryption
+per matched record, causing the decryption workload to grow
+linearly with $|R_Q|$. In contrast, BVCRSA always performs
+only two decryptions, regardless of the aggregation size,
+because all matched ciphertexts are first combined through
+homomorphic EC-point additions.
 
-For the evaluated IIoT workload, the maximum possible
-aggregate sum is
-\(2\times10^{6}\),
-which remains well within the configured BSGS search space.
-Therefore, aggregate recovery incurs only a small fraction
-of the overall query-processing time, demonstrating that
-lifted Threshold EC-ElGamal remains practical for
-large-scale IIoT monitoring applications.
+This difference directly translates into the latency shown in
+Fig.~\ref{fig:agg_strategy_comparison}(b). As the number of
+matched records increases from 10 to 10,000, the
+conventional strategy grows from 316.8~ms to 196.1~s,
+whereas BVCRSA increases only from 63.5~ms to
+292.4~ms. The gap widens with increasing aggregation size
+because homomorphic ciphertext aggregation introduces only
+lightweight EC-point additions, while threshold decryption
+remains constant. Consequently, BVCRSA achieves up to a
+$670.5\times$ reduction in aggregation latency at the largest
+evaluated workload.
+
+Figure~\ref{fig:agg_strategy_comparison}(c) further examines
+small aggregation workloads. Although the conventional
+strategy is marginally faster when only a single ciphertext is
+aggregated, the performance crossover occurs at
+approximately $|R_Q|\approx2$. Beyond this point, the
+benefit of reducing thousands of threshold decryptions to only
+two rapidly outweighs the additional homomorphic
+aggregation cost. These results demonstrate that the proposed
+aggregate-then-decrypt strategy provides significantly better
+scalability for practical IIoT analytics, where aggregation
+typically involves many matched records.
+
 
 \section{Discussion}
 
-Although BVCRSA enables secure and authenticated
-encrypted analytics over outsourced IIoT data, several
-practical considerations remain.
+Although BVCRSA provides secure and verifiable encrypted
+IIoT analytics, several practical considerations remain.
 
-First, BVCRSA is primarily designed for append-dominant
-IIoT workloads. Frequent dynamic updates require
-reconstruction of the affected authenticated range-cover
-nodes, bitmap commitments, and Merkle paths. Although
-these updates are localized, extremely high update rates
-may increase maintenance overhead compared with relatively
-static datasets.
+First, BVCRSA is designed primarily for append-dominant
+IIoT workloads. Dynamic updates require reconstructing only
+the affected authenticated range-cover nodes, bitmap
+commitments, and Merkle paths. While these operations are
+localized, extremely high update rates may still increase
+maintenance overhead.
 
 Second, BVCRSA anchors only compact epoch commitments on
-the blockchain rather than searchable indexes or encrypted
+the blockchain instead of searchable indexes or encrypted
 sensor data. Consequently, on-chain storage grows with the
-number of finalized epochs instead of the dataset size.
-Nevertheless, long-term deployments with short epoch
-durations may gradually increase blockchain storage and
-synchronization overhead.
+number of finalized epochs rather than the dataset size.
+However, deployments with very short epoch durations may
+still incur increasing blockchain storage and
+synchronization costs over time.
 
 Third, BVCRSA adopts a hierarchical architecture in which
-lightweight sensors perform only data acquisition,
+resource-constrained sensors perform only data acquisition,
 symmetric encryption, and authenticated metadata
-generation, while computationally intensive operations are
-offloaded to the Edge Gateway and cloud. This design
-reduces the computational and memory requirements of
-sensor devices, although highly resource-constrained edge
-gateways may still require further optimization.
-Physical tampering, denial-of-service, and side-channel
-attacks are outside the scope of BVCRSA but can be
-addressed through complementary deployment mechanisms,
-such as secure boot, tamper-resistant hardware, intrusion
-detection, and hardware-assisted side-channel
-countermeasures.
+generation, while the Edge Gateway and cloud execute
+computationally intensive indexing and query processing.
+This design significantly reduces sensor-side overhead,
+although gateway performance may become a bottleneck in
+large-scale deployments. Physical tampering,
+denial-of-service, and side-channel attacks are outside the
+scope of BVCRSA and should be mitigated using
+complementary mechanisms such as secure boot,
+tamper-resistant hardware, intrusion detection, and
+hardware-assisted protections.
 
-Fourth, BVCRSA authenticates the consistency of the
-returned query state by cryptographically binding the
-canonical nodes, bitmap commitments, conjunctive bitmap,
-aggregation ciphertexts, and blockchain-anchored
-commitments. However, it does not provide general
-verifiable computation of bitmap evaluation or
-homomorphic aggregation, which would require additional
-mechanisms such as zero-knowledge proofs, verifiable
-computation, or trusted execution environments and would
-introduce additional computation and communication
-overhead.
+Fourth, BVCRSA verifies query results by cryptographically
+binding authenticated searchable indexes, bitmap
+commitments, aggregation entries, and blockchain-anchored
+epoch states. However, it does not provide general
+verifiable computation for bitmap evaluation or
+homomorphic aggregation. Supporting such functionality
+would require additional techniques, such as
+zero-knowledge proofs, verifiable computation, or trusted
+execution environments, at the cost of higher computation
+and communication overhead.
 
-Finally, BVCRSA follows the standard searchable-encryption
-leakage model by revealing only predefined size, search,
-and access patterns. Although this leakage is comparable
-to that of representative searchable-encryption schemes,
-it may still permit limited inference regarding query
-selectivity or data distribution. Mitigating such leakage
-through techniques such as ORAM or differential privacy
-remains an important direction for future work.
+Finally, BVCRSA follows the standard
+searchable-encryption leakage model. The cloud observes
+only the information explicitly defined by the formal
+leakage profile, including query, search, and access
+patterns required for efficient retrieval, while plaintext
+records, reconstructed bitmaps, and cryptographic keys
+remain protected. Nevertheless, repeated queries may still
+permit limited inference about query selectivity or data
+distribution. Reducing this inherent leakage through
+techniques such as ORAM or differential privacy remains an
+important direction for future work.
 
 \section{Conclusion}
 
@@ -3100,14 +3195,13 @@ Experimental results demonstrate efficient trapdoor
 generation, practical bitmap-based query processing, low
 verification overhead, and scalable index construction,
 highlighting the practicality of BVCRSA for secure
-outsourced IIoT analytics. Future work will investigate
-efficient revocation mechanisms, dynamic index updates,
-large-scale evaluation using real-world IIoT datasets,
-end-to-end performance under realistic deployment
-conditions, distributed trust management, and
-post-quantum cryptographic techniques to further enhance
-the scalability, practicality, and long-term security of
-the framework.
+outsourced IIoT analytics. Future work will investigate privacy-preserving indexed ABSE lookup
+to avoid exhaustive token evaluation, forward-secure revocation with
+epoch-evolving node keys, efficient dynamic index updates, and
+distributed trust management. Further studies will evaluate BVCRSA
+using large-scale real-world IIoT datasets and realistic end-to-end
+deployments, while exploring post-quantum primitives to strengthen
+its long-term security.
 
 \begin{thebibliography}{00}
 
