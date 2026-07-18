@@ -1,0 +1,11 @@
+M,algorithm,agg_ms
+100,BVCRSA (Ours),2.44
+100,Conventional AHE,5.757
+200,BVCRSA (Ours),5.39
+200,Conventional AHE,10.434
+500,BVCRSA (Ours),7.492
+500,Conventional AHE,17.152
+800,BVCRSA (Ours),13.668
+800,Conventional AHE,30.291
+1000,BVCRSA (Ours),17.963
+1000,Conventional AHE,40.572
