@@ -1,0 +1,104 @@
+# BVCRSA — Proposed Fixes
+
+Consolidated fix proposals for the major revision. Every item traces to a
+reviewer comment in [../ReviewerFeedBack/](../ReviewerFeedBack/).
+
+## Files
+
+| File | Covers |
+|---|---|
+| [01_Protocol_Fixes.md](01_Protocol_Fixes.md) | P1–P6 — key distribution, ABSE instantiation, the authorization bypass, policy binding, gateway trust, revocation |
+| [02_Proof_Fixes.md](02_Proof_Fixes.md) | Theorems 1, 2, 5, 6, 7 — restatements forced by the protocol changes |
+| [03_Text_Fixes.md](03_Text_Fixes.md) | Copy-paste patches: notation, dataset consistency, disclosure paragraphs, captions, typos |
+| [04_Figure_Fixes.md](04_Figure_Fixes.md) | The three missing figures, vector conversion, figure-to-experiment map |
+| [05_Response_Letter.md](05_Response_Letter.md) | Skeleton reply, per reviewer |
+
+## Priority
+
+Work top-down. Items in the same band are independent.
+
+### Band 1 — blocks acceptance, needs protocol design
+
+| # | Fix | Reviewer | Why first |
+|---|---|---|---|
+| **F1** | Bind `S_Q` to the authorized query | R3-1 | Authorization bypass. The most serious finding in the review set. Nothing else matters if this stands. |
+| **F2** | Bind node policies `P_u` to record policies `P_i` | R3-2 | Same vulnerability class — node-level access silently grants record-level access |
+| **F3** | TDAs verify query authorization before partial decryption | R3-3 | Completes F1; without it the authorities are a decryption oracle |
+| **F4** | Instantiate ABSE concretely | R1-C2, R3-4, R3-5 | Every security theorem is conditional until this lands |
+
+F1–F3 are one coherent change to the aggregation path. Design them together.
+
+### Band 2 — blocks acceptance, paper-side only
+
+| # | Fix | Reviewer |
+|---|---|---|
+| **F5** | Provision the gateway with sensor HMAC keys | R1-C1 |
+| **F6** | Restate completeness as *relative to gateway-committed state* everywhere | R7-C1, R7-C2, R3-9 |
+| **F7** | Rewrite Theorem 2 with a simulator argument; concede `U_Q` leakage | R5-3, R3-6 |
+| **F8** | Correct dataset size to 10³–10⁵ throughout, and the knock-on `Sum_max` | R1-C5, R3-15 |
+| **F9** | Rewrite the hardware description for AWS-only execution | R1-C5 |
+
+⚠️ **F5 and F6 interact.** Giving the gateway HMAC keys lets it forge sensor
+packets, which makes the gateway-trust problem worse. Design them together.
+
+### Band 3 — experiments, already implemented
+
+All eleven experiments are written. They need **running**, not writing.
+
+| Fix | Experiment | Reviewer |
+|---|---|---|
+| Per-primitive reconciliation | Exp 10 — **run first** | R2-C3, R1-C4 |
+| Throughput that reconciles with latency | Exp 3 | R1-C4, R3-14 |
+| Complete verifiable aggregation protocol | Exp 5 | R1-C3 |
+| Exp 5 regenerated under threshold EC-ElGamal | Exp 5 | R2-C7 |
+| Communication in KB | Exp 8 | R1-C7, R2-C5 |
+| Sensor-side public-key cost | Exp 9 | R1-C6 |
+| Blockchain gas / ledger / sync | Exp 11 | R7-C5, R4-2 |
+| BSGS scalability | Exp 7 | R2-C6 |
+| Raw data, CIs, error bars | harness — structural | R1-C4, R2-C2, R3-17, R7-C4 |
+| Vector figures | harness — structural | R1-C8 |
+
+### Band 4 — editorial
+
+| # | Fix | Reviewer |
+|---|---|---|
+| **F10** | Adopted-vs-novel paragraph | R2-C1 |
+| **F11** | Measurement-scope and baseline-parity disclaimer | R5-2 |
+| **F12** | Self-contained bitmap reconstruction procedure | R5-1 |
+| **F13** | Baseline description subsection, incl. simplifications | R3-16 |
+| **F14** | Notation sweep | R4-1 |
+| **F15** | Run count in every caption, with true values | R2-C8 |
+| **F16** | Tie Figs. 7 and 8 to Table IV | R2-C6 |
+| **F17** | Leakage concessions — user-side and gateway-side | R3-6, R3-7, R3-8 |
+| **F18** | Deletion / update workflow | R7-C3 |
+| **F19** | Revocation: fix or declare a limitation | R3-10 |
+| **F20** | Proofread; fix duplicated phrases | R4-3 |
+
+## What is not fixed by any of this
+
+Three items are genuine scope decisions, not defects to patch:
+
+1. **Gateway single point of trust** (R7-C1). Options are: accept and scope it,
+   split `K_sel` across gateways, or have sensors co-sign metadata. The third
+   is strongest without a redesign. See F6 — the honest scoping is the cheap
+   path, but R3 and R7 may not accept it twice.
+2. **Network transmission delay** (R7-C4). Exp 8 gives payload volume, not
+   wire latency. Either measure RTT between AWS nodes or state that
+   transmission time is deployment-dependent.
+3. **Index-update cost under churn** (R7-C3, R3-11). No experiment measures
+   this. Add as Exp 12 if pursued.
+
+## Honest assessment
+
+Two reviewers rejected. The rejections rest on three things: a real
+authorization vulnerability (F1–F3), an unspecified ABSE (F4), and
+experimental numbers that could not be true (Band 3).
+
+The experiments are rebuilt and will produce defensible numbers — but they
+will be **worse** numbers. The old throughput figure was measuring dictionary
+lookups. Expect the corrected results to lose some of the margin over the
+baselines. That is the correct outcome, and it is far better than defending
+the current figures.
+
+F1–F3 are the real work. They are a protocol change, and no amount of
+re-benchmarking substitutes for them.

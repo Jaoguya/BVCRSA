@@ -1,0 +1,123 @@
+Reviewer: 1
+
+Comments to the Author
+The authors have substantially revised the manuscript and addressed several of my earlier concerns, particularly those related to user-side bitmap reconstruction, leakage disclosure, separation of the threat models, and completeness relative to the gateway-committed state. However, the revised protocol still contains a key-distribution inconsistency, relies on an insufficiently specified ABSE construction, and reports experimental results that appear incompatible with the stated O(Nu × mc) token-matching complexity and record-linear verification process. Moreover, the communication and aggregation experiments do not appear to evaluate the complete protocol as formally specified. Therefore, I cannot recommend this manuscript for publication.
+
+COMMENTS
+
+-The gateway must verify sensor HMAC tags using K_HMAC^(i). However, the credential-distribution algorithm provides these keys only to the sensors. The gateway receives only K_sel and its signing key. Therefore, the sensor-packet authentication step cannot be executed as currently specified.
+
+-The paper assumes an ABSE primitive that simultaneously provides searchable indexing, randomized context-bound query tokens, policy enforcement, user-collusion resistance, and payload-key encapsulation. However, no concrete ABSE scheme or formally proven composition is provided. Consequently, the protocol implementation and the associated security claims cannot be independently verified or reproduced.
+
+-According to the formal protocol, every selected aggregation entry A_i must be returned to the user so that the user can independently recompute and verify the aggregate. However, the performance discussion claims that only compact aggregate ciphertexts and verification proofs are returned. The evaluation should measure the complete verifiable protocol, including the communication and client-side processing costs of all selected aggregation entries.
+
+-The scheme requires exhaustive ABSE matching with complexity O(Nu × mc), followed by authenticated bitmap processing and homomorphic aggregation. Nevertheless, the manuscript reports sub-millisecond execution times in Python and throughput close to 10^6 queries per second. Averaging the measurements over 20 runs does not adequately explain these results. The authors should provide raw timing data, operation counts, standard deviations or confidence intervals, implementation code, optimization details, and a precise definition of which operations are included in each measurement.
+
+-The experimental setup states that the evaluated datasets contain at most 20,000 records, whereas the results section claims experiments involving up to 100,000 records. The manuscript should provide consistent dataset sizes, parameters, hardware settings, raw results, source code, and reproducible experimental scripts.
+
+-The formal protocol requires sensors to perform ABSE key encapsulation and Threshold EC-ElGamal encryption in addition to AES-GCM encryption and HMAC authentication. However, the evaluation describes the sensor workload as consisting only of symmetric encryption and authenticated metadata generation. The authors should report the public-key computation time, energy consumption, memory usage, ciphertext expansion, and Raspberry Pi measurements for the complete sensor-side procedure.
+
+-Each matched canonical node requires the transmission of complete authenticated bitmap blocks, while each selected record requires an authenticated aggregation entry. Therefore, the communication cost grows with both the bitmap size and the number of matched records. A numerical end-to-end communication evaluation is necessary rather than relying only on asymptotic complexity expressions.
+
+-Figures have low resolution, small labels, and limited readability, particularly when viewed at normal manuscript scale. All diagrams and plots should be regenerated as true vector graphics and submitted in SVG or another IEEE-compatible vector format, such as EPS or vector PDF. Raster screenshots should be avoided.
+
+Reviewer: 2
+
+Comments to the Author
+Further comments to the authors-
+1. Response to Comment 1 says the distinction between adopted and novel components was clarified "throughout the Introduction, Related Work, and Contributions," but I could not locate a single place where this is stated plainly. Scattering it across three sections is not the same as answering the request. A two- or three-sentence block stating exactly what is reused vs. new would take the authors five minutes and would resolve this cleanly.
+2. The claim that "run-to-run variance was negligible" (response to Comment 2) is asserted, not shown. If it is truly negligible, reporting it costs nothing that a std-dev column in Tables/Figs would settle the matter.
+3. My concern about implausibly fast sub-ms latencies for a Python/py_ecc stack was not really engaged with. The response repeats that reported numbers exclude network/blockchain latency, which I already knew from the first submission that doesn't explain how ABSE.Test + Merkle verify + bitmap AND/OR over 100K-bit vectors finishes in well under a millisecond in pure Python. I'd like to see per-primitive microbenchmarks (single Test call, single pairing, single Merkle verify) so the totals can be checked by hand.
+4. Extending from 20K to 100K records is a fair partial response, but the paper's own Introduction motivates the work with "massive volumes" of industrial sensor data i.e 100K is still a toy scale relative to that framing. An extrapolation using the already-derived O(N log N) bound to, say, 10^6-10^7 records would cost the authors nothing computationally and would substantiate the scalability claim rather than just gesture at it.
+5. Table V and the new communication-cost subsection are still purely asymptotic. Every other cost in the paper (index construction, trapdoor gen, query, verification, aggregation) is backed by measured numbers from the prototype, but communication is the one dimension left as O(·) expressions only. I'd like actual KB figures for trapdoor size, first-round response, and second-round response at a couple of representative N and |R_Q| values.
+6. Figures 7 and 8 (aggregation-strategy comparison, BSGS recovery) are new additions in this revision and are not tied back to Table IV/the cost derivations anywhere in the text. The response to my original Comment 9/10 predates these figures, so naturally it doesn't cover them but as they stand now they read as free-floating experiments rather than validation of the stated complexity.
+7. The switch from single-key EC-ElGamal to (t,n)-Threshold EC-ElGamal (done in response to a different reviewer) touches the same aggregation pipeline that Figs. 6 and 7 report on. Nothing in the response letter confirms these experiments were regenerated under the new threshold scheme. If they weren't, the 670.5× number and the decryption-call counts in Fig. 7(a) may no longer correspond to the protocol actually described in Phase 5.
+8. Minor: "20 independent runs" is stated in the Experimental Setup, but I don't see this repeated consistently in every figure caption (e.g., Fig. 8).
+
+
+Reviewer: 3
+
+Comments to the Author
+Rejected in the present form. The manuscript necessitates a redesign of the protocol, a definitive ABSE implementation, updated security proofs, rectification of the aggregation-authorization vulnerability, and a thorough re-execution of the experimental assessment.
+(1) The aggregation protocol allows the user to present any arbitrary set of positions S without demonstrating that it was derived from a sanctioned range query. This results in a significant authorization circumvention.
+(2) Node-specific policies P_u and record-specific policies P_i elements are not cohesively connected. A user might have the capability to consolidate values from records that do not meet their specific access policies.
+(3) Threshold decryption authority authenticates partial decryptions but does not confirm that the aggregate request stems from a valid, policy-sanctioned inquiry.
+(4) The ABSE element is characterized solely as an abstract interface. The document must present a definitive framework, methodologies, security premises, and execution specifics.
+(5) The security proofs rely on unconfirmed ABSE attributes and so are conditional rather than definitive validations of the implemented system.
+(6) The significance of query privacy is exaggerated due to the cloud's ability to discern aligned canonical nodes, chosen record locations, query frequency, access behaviors, result quantities, and answer dimensions.
+(7) Authorized users retrieve comprehensive canonical-node bitmaps, potentially disclosing record membership and approximate numerical values that extend beyond the intended query results.
+(8) The gateway monitors metadata related to searchable attributes and bitmap affiliations. Confidentiality assertions must explicitly recognize this breach.
+(9) Blockchain anchoring only verifies the conditions endorsed by the gateway. It cannot identify records that have been excluded or inaccurately cataloged by a malicious gateway.
+(10) Efficient user revocation is not achievable because node keys remain constant throughout epochs and can be retained by users who were previously authorized.
+(11) The epoch-binding approach might necessitate extensive regeneration or recommitment of searchable indexes, which contradicts the asserted minimal update overhead.
+(12) Retaining a comprehensive bitmap for each canonical node could result in substantial storage, communication, and client-memory expenses.
+(13) The reported query-processing durations do not align with the independently reported homomorphic aggregation durations.
+(14) The throughput outcomes do not align with the declared per-query latency figures and necessitate thorough validation.
+(15) The experimental part presents the dataset sizes inconsistently. The dataset sizes are presented inconsistently throughout the experimental section.
+(16) Baseline methodologies lack adequate description to facilitate the replication of comparisons or guarantee uniform security configurations and functionalities.
+(17) The experiments are devoid of raw data, confidence intervals, error margins, and comprehensive benchmark setups.
+
+Reviewer: 4
+
+Comments to the Author
+The authors have thoroughly addressed prior reviewer concerns, in particular the bitmap key-provisioning inconsistency (now resolved via node-specific keys encapsulated under ABSE), the threat-model boundary between the honest-but-curious gateway and the malicious cloud, and the formal leakage profile. The added completeness/aggregation-correctness theorems and the expanded evaluation (up to 100k records, aggregation-recovery scalability) substantially strengthen the paper. Remaining suggestions: (1) further tighten notation consistency between the main text and tables; (2) consider briefly quantifying blockchain gas/communication cost empirically rather than only conceptually; (3) a final full proofread for residual typographical issues.
+
+Reviewer: 5
+
+Comments to the Author
+While the authors have provided a detailed response, several critical issues remain insufficiently addressed in the revised manuscript.
+Major Issues
+1. The bitmap reconstruction workflow needs clearer exposition. The derivation of node-specific keys Ku and their ABSE encapsulation should be presented as a self-contained, step-by-step procedure.
+2. The experimental results would benefit from more explicit clarification. The reported latency excludes network and blockchain overhead, and the comparison baselines offer different functionality sets. A clear disclaimer and discussion of trade-offs would strengthen the presentation.
+3. The security proof for Theorem 2 could be further developed. A more formal simulator argument would enhance rigor, and explicitly acknowledging that matched canonical nodes U_Q inherently reveal some range semantics would improve transparency.
+
+While the authors have provided a detailed response, several critical issues remain insufficiently
+addressed in the revised manuscript.
+Major Issues
+1. The bitmap reconstruction workflow needs clearer exposition. The derivation of node-specific
+keys Ku and their ABSE encapsulation should be presented as a self-contained, step-by-step
+procedure.
+2. The experimental results would benefit from more explicit clarification. The reported latency
+excludes network and blockchain overhead, and the comparison baselines offer different
+functionality sets. A clear disclaimer and discussion of trade-offs would strengthen the
+presentation.
+3. The security proof for Theorem 2 could be further developed. A more formal simulator
+argument would enhance rigor, and explicitly acknowledging that matched canonical nodes U_Q
+inherently reveal some range semantics would improve transparency.
+
+
+Reviewer: 6
+
+Comments to the Author
+OVERALL ASSESSMENT
+
+The authors have thoroughly addressed all concerns raised in the first round of review. The revised manuscript is substantially improved in terms of theoretical grounding, protocol consistency, experimental validation, and presentation clarity. The paper is now technically sound, well-validated, and suitable for publication.
+
+STRENGTHS
+
+Comprehensive response to reviewers. The authors have provided detailed point-by-point responses addressing all comments with precise locations of changes.
+
+Strong protocol redesign. The bitmap protection mechanism has been corrected, and the threshold decryption architecture eliminates the single-key vulnerability.
+
+Rigorous security analysis. Seven formal theorems with proofs covering packet authenticity, query privacy, data confidentiality, policy enforcement, threshold security, aggregation correctness, and query-state integrity.
+
+Extended experimental validation. Query processing experiments now cover datasets up to 100,000 records, and aggregation scalability is evaluated separately.
+
+Clear communication cost analysis. Table V provides a systematic comparison of request and response communication overhead.
+
+RECOMMENDATION
+
+Publish Unaltered. The manuscript has been thoroughly revised and addresses all major concerns from the first round. The paper is suitable for publication in the IEEE Internet of Things Journal in its current form.
+
+Reviewer: 7
+
+Comments to the Author
+Comment 1: The edge gateway monopolizes the global master secret K_sel for bitmap masking, which creates a severe single point of trust. A compromised or malicious gateway can forge invalid index and bitmap commitments before anchoring them on the blockchain.
+
+Comment 2: The integrity and completeness guarantees of the proposed protocol are only conditioned on the honest edge gateway. The current mechanism can only detect tampering or omission of indexes and bitmaps conducted by the cloud server during query execution, yet it cannot identify fake canonical indexes or falsified bitmap raw data deliberately generated by the edge gateway before it anchors Merkle roots on the blockchain.
+
+Comment 3: BVCRSA is only designed for append-only industrial sensor streams, lacking standardized workflows for hierarchical index and bitmap maintenance when sensor data are updated or deleted. In practical smart manufacturing, expired and faulty readings often need to be invalidated.
+
+Comment 4: All performance evaluations in this manuscript only measure offline cryptographic computation latency, while critical end-to-end overhead metrics including network transmission delay, blockchain interaction cost, and energy consumption of resource-constrained IIoT sensors are entirely excluded from analysis. Although each experiment is repeated for 20 independent runs, no error bars or statistical confidence intervals are attached to performance curves to quantify result variance, which weakens the persuasiveness of experimental conclusions.
+
+Comment 5: The blockchain prototype is only validated on a single-node Clique PoA private testnet deployed on a standalone machine, with a fixed block interval adopted for all experiments. No multi-node consortium cluster is constructed, and no comparative measurements under multiple epoch submission frequencies are conducted. Quantitative curves of ledger expansion, transaction gas cost and cross-node synchronization latency under multi-node networks and variable epoch cycles are absent. As a result, the manuscript cannot evaluate storage bloat and synchronization overhead under real industrial multi-party consortium chain deployments, leading to incomplete assessment of blockchain overhead and practical applicability.
