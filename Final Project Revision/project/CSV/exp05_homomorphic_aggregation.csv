@@ -1,0 +1,286 @@
+arm,matched_records,decrypt_calls,ec_adds,bytes_returned,verified,runs,mean_ms,median_ms,stdev_ms,ci95_ms,min_ms,max_ms,raw_ms,env_timestamp_utc,env_host,env_platform,env_python,env_aws_target,env_git_rev
+Naive,100,100,0,6600,False,20,2741.762059999928,2691.4701999976387,142.76516978939046,62.569594395801765,2630.649099999573,3219.6852000015497,"[2746.6559, 2658.984, 2821.2056, 2689.8441, 2745.2372, 3219.6852, 2976.9091, 2870.9207, 2685.4173, 2770.7761, 2716.4845, 2659.8922, 2630.6491, 2632.746, 2633.7073, 2656.322, 2693.0963, 2699.9117, 2661.3659, 2665.431]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Compact,100,2,198,164,False,20,57.657435000510304,57.52720000054978,1.0336088609637464,0.45299905635116877,55.09810000148718,59.41750000056345,"[57.2575, 55.0981, 57.3614, 57.1862, 57.5045, 58.923, 58.2036, 58.5259, 57.0605, 57.4799, 57.6899, 59.4175, 57.7122, 57.123, 57.5499, 56.4803, 56.5488, 57.8405, 58.9441, 59.2419]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Verifiable,100,2,396,21364,True,20,59.62694999980158,59.21734999901673,1.2967332617445804,0.5683184095013981,57.75569999968866,62.18789999911678,"[59.155, 59.9069, 62.1157, 59.8265, 60.1681, 58.8218, 57.7834, 58.9325, 61.4039, 60.5453, 59.1964, 59.1265, 59.2383, 57.9001, 60.9173, 62.1879, 59.8013, 58.6085, 59.1479, 57.7557]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+Naive,200,200,0,13200,False,20,7588.254814999891,7851.453100000072,646.3215427145403,283.2629053471202,5423.211000001174,8300.563599997986,"[7130.6356, 7822.6597, 6866.0936, 7582.0973, 8028.5719, 7904.5823, 7272.2217, 7564.148, 7952.584, 7920.6075, 7880.2465, 7492.093, 5423.211, 7588.7139, 6921.18, 8025.0764, 7987.956, 8036.9661, 8300.5636, 8064.8882]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Compact,200,2,398,164,False,20,92.20065499939665,92.37205000135873,2.7443085681706596,1.202746259894283,86.8759000004502,96.952699997928,"[92.4397, 86.8759, 96.4251, 96.9527, 89.2555, 92.2509, 92.0573, 87.953, 91.9539, 92.3044, 90.393, 93.1015, 94.3779, 93.5414, 96.3122, 92.4579, 93.6582, 89.047, 89.5583, 93.0973]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Verifiable,200,2,796,42564,True,20,99.7162350000508,100.63735000221641,4.991752490505186,2.1877319875421994,85.21810000092955,105.96449999866309,"[97.0992, 100.3622, 96.8592, 104.4231, 99.5713, 97.2068, 100.1304, 105.9645, 102.4266, 97.8647, 103.3051, 104.6304, 104.1602, 100.9125, 104.3546, 85.2181, 95.9737, 101.4248, 91.3077, 101.1296]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+Naive,300,300,0,19800,False,20,8712.414720000379,8748.397899998963,590.5482413141508,258.81917826799264,8073.945000000094,10613.018100000772,"[8802.7374, 8790.632, 8571.9155, 8735.5783, 9005.4277, 9388.6669, 8839.1012, 8230.6676, 8105.8462, 8107.9951, 8077.2061, 10613.0181, 8145.6677, 8073.945, 8386.6111, 9088.1571, 8933.5195, 8866.467, 8761.2175, 8723.9174]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Compact,300,2,598,164,False,20,71.32355000030657,67.53109999954177,9.23299203295051,4.046537172992697,62.93530000039027,94.4311999992351,"[72.895, 67.8937, 72.1813, 70.9966, 64.6773, 65.5494, 65.6506, 63.2598, 65.1, 73.0915, 65.7664, 67.1685, 76.7624, 62.9353, 64.9692, 86.4394, 94.4312, 91.2764, 70.259, 65.168]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Verifiable,300,2,1196,63764,True,20,77.46801499997673,76.33329999953276,5.634962199588932,2.4696310716688274,71.69960000101128,96.18800000316696,"[76.0549, 74.8204, 72.8996, 76.2995, 71.6996, 78.8422, 76.7652, 77.2359, 96.188, 73.9653, 78.632, 73.3777, 73.5114, 77.971, 73.332, 87.4709, 79.0124, 74.3845, 76.3671, 80.5307]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+Naive,400,400,0,26400,False,20,13769.88854500032,14386.423700001615,2306.746536679942,1010.9762443241981,10553.339400001278,16569.046299999172,"[11061.2052, 11097.5059, 11138.5063, 11342.552, 12268.4796, 16496.414, 16344.63, 15766.949, 16300.3446, 15183.7746, 14445.6185, 14686.8406, 14327.2289, 10553.3394, 11230.1277, 11525.8242, 12569.3019, 16497.92, 15992.1622, 16569.0463]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Compact,400,2,798,164,False,20,75.98581999991438,72.65345000087109,10.841919691383046,4.751680809559102,67.48589999915566,108.02929999772459,"[108.0293, 98.1218, 93.3523, 75.8497, 70.3843, 70.3051, 74.3904, 70.3796, 72.4812, 72.8257, 73.2332, 74.7633, 73.8494, 68.2739, 70.6222, 68.2019, 67.4859, 71.7826, 69.4497, 75.9349]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Verifiable,400,2,1596,84964,True,20,81.77542999965226,79.70905000001949,6.352462409334392,2.7840894032696237,76.68959999864455,99.68310000112979,"[81.4796, 99.6831, 99.5417, 83.0828, 78.7304, 83.6219, 81.3049, 80.0486, 78.3947, 79.1467, 78.4032, 78.2505, 79.7254, 79.6267, 79.6927, 81.0333, 81.2063, 78.6311, 77.2154, 76.6896]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+Naive,500,500,0,33000,False,20,14223.379684999964,14039.661600001637,794.6691570423559,348.279113934756,13165.106399999786,16274.195700003474,"[16274.1957, 15057.1155, 15185.6642, 15823.714, 14360.2802, 13819.0794, 13864.4207, 13937.0317, 14087.5957, 13239.3096, 13602.7732, 13165.1064, 13914.6324, 14149.0364, 13991.7275, 13741.7643, 14099.8712, 14187.3613, 13661.4783, 14305.436]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Compact,500,2,998,164,False,20,77.87034999964817,74.54719999805093,9.813901301424487,4.301131885153926,71.35199999902397,115.56729999938398,"[76.5082, 72.1192, 75.2256, 71.4955, 72.3983, 73.0841, 74.2165, 74.2376, 71.352, 73.2341, 73.1267, 72.0142, 81.0164, 84.1236, 78.2931, 83.342, 77.2025, 74.8568, 83.9933, 115.5673]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
+BVCRSA-Verifiable,500,2,1996,106164,True,20,90.19636000030005,88.61685000010766,5.93579257541137,2.6014757969958406,83.99389999976847,109.61419999875943,"[93.1846, 99.7556, 90.4744, 89.6101, 91.6409, 109.6142, 87.081, 83.9939, 86.8743, 85.1002, 85.0654, 87.6236, 85.7646, 87.1607, 92.647, 91.9614, 90.8464, 92.5511, 86.5473, 86.4305]",2026-08-16T13:19:40+00:00,Y2X,Windows-10-10.0.26200-SP0,3.11.15,"# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details â€” copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa",23fe4f0
