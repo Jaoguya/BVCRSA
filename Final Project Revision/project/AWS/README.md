@@ -200,3 +200,198 @@ two of compute.
   in-process alongside the Edge Gateway and User Client. A distributed
   deployment would be a *different paper* — the current evaluation measures
   cryptographic cost, and §V now says so explicitly (R5-2).
+
+---
+
+# Multiple instances
+
+There are **two different reasons** to run more than one instance. Do not
+confuse them — they have opposite requirements.
+
+| | Purpose | Instances | Requirement |
+|---|---|---|---|
+| **A. Parallel workers** | Finish the suite faster | 2–3, all **identical type** | Each runs *different* experiments, independently |
+| **B. Blockchain consortium** | Experiment 11 only | 3+, networked to each other | They must talk over port 8545 |
+
+---
+
+## A. Parallel workers — cutting wall-clock time
+
+The eleven experiments share no state. Each reads `CSV/Datarecord.csv`, writes
+its own `CSV/expNN_*.csv`, and never touches another experiment's output. So
+they can be split across instances with no coordination.
+
+### Suggested split
+
+| Worker | Experiments | Why |
+|---|---|---|
+| **W1** | 02 Query Processing | Longest single job — index builds to N=100k |
+| **W2** | 06 Aggregation Strategy, 03 Throughput | Second longest — real threshold decryptions |
+| **W3** | 01, 04, 05, 07, 08 | All the short ones together |
+
+Expected wall-clock: roughly the length of W1 instead of the sum of everything.
+
+### ⚠️ Three rules that keep the results publishable
+
+1. **Identical instance type on every worker.** Mixing `c7i.2xlarge` with
+   `c7i.xlarge` makes the numbers non-comparable and hands R1-C5 and R3-15
+   exactly the inconsistency they objected to.
+
+2. **Never split one experiment across workers.** All schemes inside a single
+   experiment must run on the same machine, because the whole point is
+   comparing them against each other. The split above respects this — each
+   experiment lives entirely on one worker.
+
+3. **Run Experiment 10 on *every* worker.** It takes minutes and measures
+   per-primitive costs. Having it on each machine lets you reconcile that
+   worker's results against *its own* primitive costs rather than another
+   machine's — which is what R2-C3 asked for. Keep each copy; name them
+   `exp10_primitive_microbench__W1.csv` etc. when you pull them down.
+
+Every CSV already records `env_host`, `env_platform`, `env_python` and
+`env_git_rev`, so which worker produced which row is always auditable.
+
+### Setup
+
+Build one instance completely (§2), then clone it — do not repeat the install
+three times.
+
+```bash
+# 1. Set up W1 fully: venv, dependencies, code, Datarecord.csv.
+#    Verify it works:
+python Benchmark/_shared/test_pipeline.py
+
+# 2. In the AWS console: Instances -> select W1 -> Actions ->
+#    Image and templates -> Create image.  Wait for the AMI to become
+#    "available" (a few minutes).
+
+# 3. Launch 2 more instances from that AMI, same type, same key pair,
+#    same security group.
+```
+
+Every worker now has identical software. Confirm before starting:
+
+```bash
+for h in $W1 $W2 $W3; do
+  ssh -i key.pem ubuntu@$h "python --version; pip show py_arkworks_bls12381 | head -2"
+done
+```
+
+⚠️ If `py_arkworks_bls12381` is present on one worker and missing on another,
+that worker runs BN128 while the others run BLS12-381 — a ~50× difference that
+would silently corrupt the comparison. Check it every time.
+
+### Running
+
+On each worker, in its own tmux session:
+
+```bash
+# W1
+ssh -i key.pem ubuntu@$W1
+tmux new -s w1
+cd ~/bvcrsa/Benchmark/10_Primitive_Microbench && python experiment.py
+cd ../02_Query_Processing && python experiment.py
+# Ctrl-B, D
+```
+
+```bash
+# W3 — the short ones
+ssh -i key.pem ubuntu@$W3
+tmux new -s w3
+cd ~/bvcrsa/Benchmark/10_Primitive_Microbench && python experiment.py
+for d in 01_Trapdoor_Gen 04_Verification_Overhead 05_Homomorphic_Aggregation \
+         07_Aggregate_Recovery_BSGS 08_Communication_Cost; do
+  ( cd ~/bvcrsa/Benchmark/$d && python experiment.py )
+done
+# Ctrl-B, D
+```
+
+### Collecting
+
+Pull each worker into its own folder first, then merge — so a name collision
+never silently overwrites a result.
+
+```bash
+for w in W1 W2 W3; do
+  mkdir -p results/$w
+  rsync -avz -e "ssh -i key.pem" ubuntu@${!w}:~/bvcrsa/CSV/     results/$w/
+  rsync -avz -e "ssh -i key.pem" ubuntu@${!w}:~/bvcrsa/Figures/ results/$w/
+  rsync -avz -e "ssh -i key.pem" ubuntu@${!w}:~/bvcrsa/logs/    results/$w/logs/
+done
+```
+
+Then copy into `CSV/` and `Figures/`, keeping each worker's `exp10_*` under a
+distinct name.
+
+### Cost
+
+Three `c7i.2xlarge` ≈ **$1.08/hour** combined. You finish in roughly a third of
+the time, so the total bill is about the same — you are buying wall-clock, not
+compute. **Stop each worker the moment its jobs finish**; do not leave two idle
+while the third grinds through Exp 2.
+
+---
+
+## B. Blockchain consortium — Experiment 11 only
+
+Different purpose entirely. R7-C5 rejects the single-node Clique PoA testnet
+and asks for cross-node synchronisation latency, which cannot exist with one
+node. These instances must reach each other.
+
+`t3.medium` is sufficient — the nodes do almost no work.
+
+### Security group
+
+Add a rule allowing **8545/tcp** and **30303/tcp+udp** *from the security group
+itself*, so the nodes talk to each other but the RPC port is not exposed to the
+internet. Never open 8545 to `0.0.0.0/0` — it is an unauthenticated RPC endpoint.
+
+### Setup, per node
+
+```bash
+sudo apt update && sudo apt install -y geth   # or the official tarball
+geth --datadir ~/node init genesis.json       # same genesis on all 3
+```
+
+Use one Clique genesis file with all three signer addresses in `extraData`,
+copied identically to every node.
+
+```bash
+geth --datadir ~/node --networkid 1337 \
+     --http --http.addr 0.0.0.0 --http.port 8545 \
+     --http.api eth,net,web3,personal,miner,clique \
+     --mine --miner.etherbase <signer> \
+     --unlock <signer> --password ~/pw.txt \
+     --bootnodes enode://<node1-enode>@<node1-ip>:30303 \
+     --syncmode full
+```
+
+Confirm the mesh is formed before measuring:
+
+```bash
+geth attach http://localhost:8545 --exec 'admin.peers.length'   # expect 2
+```
+
+### Running Experiment 11
+
+From whichever instance holds the code:
+
+```bash
+export BVCRSA_NODE_RPCS=http://10.0.1.10:8545,http://10.0.1.11:8545,http://10.0.1.12:8545
+export BVCRSA_BLOCK_INTERVALS=1,2,5,15
+export BVCRSA_EPOCHS=20
+cd Benchmark/11_Blockchain_Cost && python experiment.py
+```
+
+Block interval is set in the Clique genesis `period` field, so **each interval
+in the sweep needs its own genesis and a chain restart**. Script it, or run the
+four intervals as four separate short sessions.
+
+⚠️ The experiment exits non-zero and writes no CSV if fewer than the expected
+nodes answer. That is deliberate — inventing consortium numbers for a reviewer
+who already rejected the single-node setup would be indefensible.
+
+### Cost
+
+Three `t3.medium` ≈ **$0.125/hour** combined. Experiment 11 is short; stop them
+the same day.

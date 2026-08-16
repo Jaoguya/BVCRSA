@@ -34,6 +34,8 @@ _SHARED = os.path.join(os.path.dirname(BASE_DIR), "_shared")
 _CSVDIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "CSV")
 sys.path.insert(0, _SHARED)
 
+from baselines import summarize
+from harness import Experiment
 from ec_elgamal import generate_ec_elgamal_keypair
 from threshold_ec_elgamal import ThresholdKeyShares, threshold_decrypt
 
@@ -46,7 +48,10 @@ SAMPLE_CAP = 150
 VALUE_RANGE = (1, 100)
 MAX_VAL = 10_000 * 100  # covers CTsum for the largest |SQ| (10000 * max value 100)
 
-CSV_FILE = os.path.join(_CSVDIR, "exp06_agg_strategy.csv")
+# The harness writes exp06_agg_strategy.csv (full dispersion, one row per
+# arm). This legacy two-column summary must NOT collide with it -- writing
+# both to the same path silently destroyed the statistics columns.
+CSV_FILE = os.path.join(_CSVDIR, "exp06_agg_strategy_summary.csv")
 
 
 def main():
@@ -76,6 +81,9 @@ def main():
     assert agg_sum == sum(check_vals), "aggregate-then-decrypt != decrypt-then-aggregate"
     print("    OK: decrypt-then-aggregate == aggregate-then-decrypt\n")
 
+    exp = Experiment(6, "agg_strategy",
+                     ["arm", "SQ", "decrypt_calls", "ec_adds", "speedup",
+                      "extrapolated", "sample_n"])
     rows = []
     for SQ in SQ_VALUES:
         print(f"[+] |SQ|={SQ}")
@@ -131,9 +139,21 @@ def main():
             assert Sum == manual_sum
             assert Count == SQ
 
-        normal_avg = sum(normal_totals) / RUNS
-        bvcrsa_avg = sum(bvcrsa_totals) / RUNS
+        n_stats = summarize(normal_totals)
+        b_stats = summarize(bvcrsa_totals)
+        normal_avg, bvcrsa_avg = n_stats["mean_ms"], b_stats["mean_ms"]
         speedup = normal_avg / bvcrsa_avg if bvcrsa_avg > 0 else float("inf")
+
+        # Emit one row per arm carrying the full dispersion. Reporting means
+        # only is what made this experiment violate the statistics contract
+        # (R1-C4, R2-C2, R3-17) -- and this is the experiment the manuscript
+        # quotes the 670.5x figure from.
+        exp.record(n_stats, arm="Conventional", SQ=SQ, decrypt_calls=SQ,
+                   ec_adds=0, speedup="",
+                   extrapolated=(not exact), sample_n=sample_n)
+        exp.record(b_stats, arm="BVCRSA", SQ=SQ, decrypt_calls=2,
+                   ec_adds=2 * (SQ - 1), speedup=round(speedup, 2),
+                   extrapolated=False, sample_n=SQ)
 
         rows.append({
             "SQ": SQ,
@@ -147,11 +167,12 @@ def main():
               f"speedup={speedup:>7.1f}x   ({'exact' if exact else f'sampled n={sample_n}'})")
 
     fields = ["SQ", "normal_calls", "bvcrsa_calls", "normal_latency_ms", "bvcrsa_latency_ms", "speedup"]
+    exp.save()
     with open(CSV_FILE, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
-    print(f"\n[+] Results saved to {CSV_FILE}")
+    print(f"\n[+] Legacy summary also saved to {CSV_FILE}")
 
     print("\n" + "=" * 96)
     print(f"  {'|SQ|':>8} {'Normal calls':>14} {'BVCRSA calls':>14} "

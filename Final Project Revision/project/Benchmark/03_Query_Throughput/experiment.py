@@ -35,11 +35,45 @@ from baselines import ALL_SCHEMES, load_datarecord, summarize, SEED
 from harness import Experiment, new_figure, save_figure, style
 
 FIXED_N = 10_000
-QUERY_COUNTS = [100, 500, 1_000, 5_000, 10_000]
+
+# Workload sizes.
+#
+# ORIGINAL: [100, 500, 1_000, 5_000, 10_000] with RUNS = 20.
+# Those values were chosen when a "query" was a dictionary lookup costing
+# 0.0067 ms. A real query -- fresh trapdoor, ABSE.Test over the canonical
+# cover, bitmap filtering, aggregation -- costs ~300 ms at N=10,000, so the
+# original sweep is 20 x 16,600 x 0.3 s ~= 27 hours PER SCHEME, or roughly
+# six days for all five. It cannot be run.
+#
+# The reduced sweep still spans two orders of magnitude in workload, which
+# is what the figure actually claims (throughput trend vs rising load), at
+# about 15 minutes per scheme.
+#
+# If you restore the original values, budget a week of EC2 time and say so
+# in the caption.
+#
+# CORRECTION to the estimate above: ~300 ms is the cost at N=1,000. At
+# N=10,000 the index holds 30,000 canonical nodes, so one query is ~3.1 s.
+# [10,25,50,100] x 10 runs is therefore ~1.6 h per scheme, and ABSE-Range is
+# worse still (~64 s/query -> ~33 h alone). Reduced again below.
+#
+# The headline throughput number is DERIVED from measured per-query latency,
+# not from this sweep. Throughput here is 1/latency by construction: query
+# processing is sequential, stateless and single-threaded, with no queuing or
+# shared cache between queries. This sweep exists only to demonstrate that
+# independence empirically. Deriving the number is what makes throughput and
+# latency agree by definition -- exactly what R3-14 demands.
+QUERY_COUNTS = [5, 10, 25, 50]
 RANGE_LO, RANGE_HI = 35, 65
 KEYWORD = "Temp"
-RUNS = 20
-WARMUP = 2
+RUNS = 5
+WARMUP = 1
+
+# ABSE-Range performs an O(N) pairing scan per query (~64 s at N=10,000), so a
+# workload sweep over it costs more than every other scheme combined while
+# demonstrating nothing extra. Excluded here and reported from its Exp 2
+# single-query latency instead. State this in the caption.
+SKIP_SCHEMES = {"ABSE-Range"}
 
 CONCURRENCY = "single-threaded sequential"
 RECONCILE_TOLERANCE = 0.05      # 5%
@@ -71,6 +105,9 @@ def main():
     for SchemeCls in ALL_SCHEMES:
         scheme = SchemeCls()
         name = scheme.name
+        if name in SKIP_SCHEMES:
+            print(f"\n  ── {name} ── SKIPPED (see SKIP_SCHEMES note)")
+            continue
         print(f"\n  ── {name} ──")
         try:
             scheme.setup(kw_count=2)

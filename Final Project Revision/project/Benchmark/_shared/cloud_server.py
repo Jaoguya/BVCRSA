@@ -136,7 +136,7 @@ class CloudServer:
             return int(b, 2)
         return int(b)
 
-    def process_conjunctive_query(self, conj_trapdoor):
+    def process_conjunctive_query(self, conj_trapdoor, abse_instance=None):
         """Phase 4: Conjunctive multi-range query (Eq. 27, Theorem 4).
 
         Q = Q_1 ∧ Q_2 ∧ ... ∧ Q_d
@@ -158,7 +158,10 @@ class CloudServer:
         dim_slots = []
 
         for dim_td in dimensions:
-            matched = self.process_query(dim_td)
+            # Forward the ABSE instance -- omitting it made every dimension
+            # construct a fresh ABSE() and run setup(), inflating each
+            # conjunctive measurement by a full key generation per dimension.
+            matched = self.process_query(dim_td, abse_instance)
             dim_matched.append(matched)
             slots = set()
             for doc in matched:

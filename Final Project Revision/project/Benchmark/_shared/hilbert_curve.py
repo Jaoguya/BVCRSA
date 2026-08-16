@@ -245,7 +245,14 @@ class HilbertCurve:
         if value_max == value_min:
             return 0
         normalized = (value - value_min) / (value_max - value_min)
-        return int(normalized * self.max_coord)
+        # Clamp to the grid. A value outside [value_min, value_max] otherwise
+        # yields a negative or oversized grid coordinate, which propagates
+        # into SHVE.encrypt() and fails there with
+        #   struct.error: 'I' format requires 0 <= number <= 4294967295
+        # -- a confusing failure a long way from its cause. Callers are still
+        # responsible for setting a window that actually covers their data;
+        # this only prevents the crash.
+        return max(0, min(self.max_coord, int(normalized * self.max_coord)))
 
 
 # ═══════════════════════════════════════════════════════════════

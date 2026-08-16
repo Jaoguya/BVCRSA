@@ -1,0 +1,55 @@
+==================================================================
+  Experiment 4: Verification Overhead
+  Building BVCRSA index via real pipeline (N=10000)...
+==================================================================
+  ⛓️  Blockchain Edge Node initialized (simulated mode)
+     Genesis: 0001811cf4477e9c...
+[setup] Ingesting 10000 sensor records through real pipeline...
+[setup] Built 30000 SCRAT nodes.
+[setup] Pre-computing Merkle multi-proofs for each |R_Q|...
+[setup] BVCRSA setup complete.
+[setup] Building Trinity-II verification data (N=10000)...
+[setup] Trinity setup complete.
+[setup] Initializing VC-KASE BLS12-381 pairing elements...
+[setup] VC-KASE setup complete.
+
+==================================================================
+  Experiment 4: Verification Overhead
+  N=10000  RUNS=300  WARMUP=10
+------------------------------------------------------------------
+  Variable:       |R_Q| (number of returned results)
+  Sweep:          [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+  Fixed:          N=10000, range=[0,100], d=1, kw=Temp
+  Query type:     Conjunctive range search (single-dim)
+  Phase measured: VERIFICATION ONLY
+  Sampling:       Interleaved (BVCRSA→Trinity→VC-KASE per round)
+==================================================================
+======================================================================
+  Experiment 04 — Verification Overhead
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+  |R_Q|=  50  BVCRSA=   1.677ms  Trinity=    2.130ms  VC-KASE=  2.071ms
+  |R_Q|= 100  BVCRSA=   3.293ms  Trinity=    4.161ms  VC-KASE=  2.073ms
+  |R_Q|= 150  BVCRSA=   4.879ms  Trinity=    6.242ms  VC-KASE=  2.085ms
+  |R_Q|= 200  BVCRSA=   6.431ms  Trinity=    8.313ms  VC-KASE=  2.088ms
+  |R_Q|= 250  BVCRSA=   7.949ms  Trinity=   10.391ms  VC-KASE=  2.092ms
+  |R_Q|= 300  BVCRSA=   9.532ms  Trinity=   12.441ms  VC-KASE=  2.100ms
+  |R_Q|= 350  BVCRSA=  10.994ms  Trinity=   14.512ms  VC-KASE=  2.083ms
+  |R_Q|= 400  BVCRSA=  12.500ms  Trinity=   16.561ms  VC-KASE=  2.090ms
+  |R_Q|= 450  BVCRSA=  13.995ms  Trinity=   18.641ms  VC-KASE=  2.090ms
+  |R_Q|= 500  BVCRSA=  15.441ms  Trinity=   20.640ms  VC-KASE=  2.088ms
+
+[+] 30 rows -> /home/ubuntu/bvcrsa/CSV/exp04_verification_overhead.csv
+[+] figure -> /home/ubuntu/bvcrsa/Figures/exp04_verification_overhead.svg
+
+[Experimental Conditions Summary]
+    Database size:       N = 10000
+    SCRAT nodes built:   30000
+    Merkle tree root:    13b004731952d5f3d2ec6b85ddec6a6a...
+    Result-set sizes:    [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+    Runs per point:      300 (median)
+    Index selection:     Deterministic evenly-spaced
+    BVCRSA verification: MerkleTree.verify_multi_proof()
+    Trinity verification: AES-GCM decrypt + content-check
+    VC-KASE verification: 2 BLS12-381 pairings (fixed)

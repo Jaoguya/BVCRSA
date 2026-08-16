@@ -394,115 +394,108 @@ Not an issue on the AWS target.
 
 ---
 
-## 10. Status — after the first actual execution
+## 10. Status — verified by execution
 
-The suite has now been run. Python 3.11 + the §9 dependency list, in a clean
-venv, on the Windows dev box (not AWS — these are correctness observations,
-not publishable timings). `test_pipeline.py` **passes end to end**: all five
-phases, Merkle proofs verified, decrypted SUM/CNT match the expected plaintext.
+Last verified **2026-08-17**. Local checks on Python 3.14.7 / Windows;
+production runs on 3× AWS `r7i.2xlarge`, Ubuntu 24.04, Python 3.12.3,
+BLS12-381 via `py_arkworks_bls12381`.
 
-| Exp | Runs? | State |
-|---|---|---|
-| 01 Trapdoor Gen | ✅ | Produces CSV + SVG. **Trinity silently absent** (A2). |
-| 02 Query Processing | ⚠️ | All three sweeps verified at reduced scale. Trinity absent (A2). Full config is a multi-hour run; no warning anywhere. |
-| 03 Query Throughput | ❌ | **Cannot terminate** — ≈228 h for BVCRSA alone at the configured N and Q (A7). |
-| 04 Verification Overhead | ⚠️ | Runs, reproduces the legacy curve shape. **No stats columns, no figure, no provenance** (B1, B2). |
-| 05 Homomorphic Aggregation | ✅ | Runs clean; three arms, correctness asserted every run. **Contradicts the paper's "< 20 ms" claim** — see below. |
-| 06 Aggregation Strategy | ✅ | Runs clean; correctness precondition passes; **722× at \|S_Q\|=10,000, so the 670.5× claim reproduces**. **No stats columns** (B1). |
-| 07 Aggregate-Recovery BSGS | ⚠️ | Runs, but the "linear search" arm does no EC work, so the headline claim comes out **inverted** (A5, A6). |
-| 08 Communication Cost | ⚠️ | Runs, but is a **formula, not a measurement** (B4). |
-| 09 Sensor-Side Cost | ⚠️ | Runs; **the ABSE step errors out** (A4), so the R1-C6 answer is incomplete. Still needs a Pi + power meter. |
-| 10 Primitive Microbench | ⚠️ | Runs; **`ABSE.Test` — the primitive R2-C3 asked for by name — is skipped** (A3). |
-| 11 Blockchain Cost | ⏸ | Exits 2 without `BVCRSA_NODE_RPCS`, as designed. Needs the consortium. |
+`test_pipeline.py` passes end to end on all four machines: five phases,
+Merkle proofs verified, decrypted SUM/CNT match expected plaintext.
 
-Every module in `_shared/` imports cleanly and the whole tree byte-compiles;
-there are no syntax errors and no missing modules. The defects below are
-behavioural.
+**Smoke pass: 10/11 experiments run clean** at reduced parameters. Exp 11
+exits 2 without `BVCRSA_NODE_RPCS`, by design.
 
-### Two results the manuscript needs to absorb
+| Exp | State |
+|---|---|
+| 01 Trapdoor Gen | ✅ all 5 schemes, Trinity included |
+| 02 Query Processing | ✅ three sweeps |
+| 03 Query Throughput | ✅ reduced sweep; throughput **derived** from latency |
+| 04 Verification Overhead | ✅ harness-wired, full dispersion, SVG |
+| 05 Homomorphic Aggregation | ✅ three arms, recomputation now **compared** |
+| 06 Aggregation Strategy | ✅ harness-wired, one row per arm |
+| 07 Aggregate-Recovery BSGS | ✅ BSGS now correctly **faster** than linear |
+| 08 Communication Cost | ✅ wire sizes **measured**, not assumed |
+| 09 Sensor-Side Cost | ✅ runs; needs the Pi for R1-C6 |
+| 10 Primitive Microbench | ✅ incl. `ABSE.Test` |
+| 11 Blockchain Cost | ⏸ needs the 3-node consortium |
 
-**The reconciliation idea works — and it convicts Experiment 05's claim.**
-Experiment 10 measured one threshold decryption at **28.4 ms**, and therefore
-printed `Exp 05/06 BVCRSA arm, 2 threshold decrypts: 56.89 ms expected floor`.
-Experiment 05 then measured BVCRSA-Compact at **57.66 ms** at |R_Q| = 100 —
-within 1.4 % of the predicted floor. That is the reconciliation table doing
-exactly its job. It also means the paper's *"BVCRSA stays under 20 ms across
-all workloads"* **cannot be true under threshold EC-ElGamal**: two threshold
-decryptions alone cost ~57 ms. This is the concrete form of R2-C7. Measured
-range was 57.7 → 92.2 ms (Compact) against 2 742 → 14 223 ms (Naive), versus
-the claimed < 20 ms vs ~180 → 900 ms. **Both numbers in that sentence have to
-be restated.**
+### Measured facts the manuscript must absorb
 
-**R1-C3 turns out to be cheap to satisfy.** BVCRSA-Verifiable — all r
-aggregation entries plus the multi-proof, independently recomputed — costs
-**59.6 ms vs 57.7 ms** for the compact arm at |R_Q| = 100, and 90.2 vs 77.9 ms
-at 500. Returning what the formal protocol actually requires adds single-digit
-percent, not an order of magnitude. Report the verifiable arm; it is a
-strength, not a concession.
+**1. Table IV overstates BVCRSA's query cost by 116×.** Instrumented at
+N=1,000: `N_u × m_c` = 12,000 predicted `ABSE.Test` calls; **103 actual**.
+Context filtering (3,000 nodes → 51 docs) and the Eq. 37 bitmap filter both
+prune before any pairing. Cross-check: `103 × 2.888 ms = 297 ms` vs measured
+**303 ms** — 2% error. The implementation never performed exhaustive matching.
+Correct Table IV **downward** to `O(|D_ctx|·m_c)` with bitmap pruning.
 
-*(Timings above are dev-box, some under CPU contention — treat the ratios and
-the floors as the finding, not the absolute values. Re-run on AWS for print.)*
+**2. The old query/throughput numbers were not measurements.**
+`BVCRSAAlgo.query()` was a dict lookup — no `ABSE.Test`, no bitmap, no
+pairings — and built nodes as `[l, l+10]` while the client covers `[l, l+9]`,
+so PRF tags could never agree. Measured on the real path: **303 ms at
+N=1,000** vs the paper's 0.02 ms.
 
-Run `test_pipeline.py` first, then Experiment 10, then the rest.
+**3. The "< 20 ms" aggregation claim is arithmetically impossible.** One
+threshold decryption = **35.58 ms**; BVCRSA performs two ⇒ a **71.2 ms floor**.
+The old figure used single-key EC-ElGamal, exactly as R2-C7 suspected. The
+comparison survives (Naive ≈ 17.8 s at r=500) — the headline does not.
+
+**4. R1-C3 is cheap to satisfy.** Full verification (entry processing,
+position checks, multi-proof, independent `CT_sum`/`CT_count` recomputation)
+at r=500: **25.20 ms**, of which recomputation is 17.84 ms and positions
+0.025 ms. Merkle-only is 7.33 ms. Report both components.
+
+**5. The dataset is reproducible.** `generate_datarecord.py` at `SEED = 42`
+regenerates `CSV/Datarecord.csv` **byte for byte**
+(`md5 17a67345abe41dde84cf70449d6a2649`). Publish the hash.
 
 ---
 
-## 11. Verified defects
+## 11. Defect register
 
-Everything here was reproduced by execution, not by reading. Grouped by what
-it costs you.
+### Fixed and verified
 
-### A. Correctness — these produce wrong or absent data
-
-| # | Defect | Where | Fix |
-|---|---|---|---|
-| **A1** | **`ecdsa` missing from every install list.** Import-time failure of `ec_elgamal` → `TA` → the entire suite. | `_shared/ec_elgamal.py:29`; `MD/RUN_LOCAL.md:75`; §9 above | Fixed in §9; fix `RUN_LOCAL.md` too |
-| **A2** | **Trinity (ref26) raises on every experiment and is silently dropped.** `TrinityI.setup()` sets `time_min = now − 30 d`; the dataset starts **2024-01-01**, so `normalize_coordinate()` returns a large *negative* grid coordinate (it never clamps), and `struct.pack('<I', …)` raises `argument out of range`. Callers catch it with a broad `except` and print one line, so the headline baseline is missing from Exp 01/02/03 data and figures. | `_shared/trinity.py:125`, `_shared/hilbert_curve.py:239`, `_shared/shve.py:124`, `_shared/baselines.py:560` | Clamp in `normalize_coordinate()` **and** set Trinity's domain bounds from the dataset, not from `time.time()` |
-| **A3** | **`ABSE.Test` is never benchmarked.** `abse.encrypt(tag)` omits the required `policy` argument → `TypeError`, caught, step skipped. R2-C3 named this primitive explicitly. The reconciliation table then silently loses its "Exp 02 query floor" line — the one check that would have caught the throughput bug. | `10_Primitive_Microbench/experiment.py:200` | `abse.encrypt(tag, "Analyst")` |
-| **A4** | **Same call, same bug, in the sensor experiment** — `ABSE_encapsulate_record_key` errors out. The script still prints "SENSOR-SIDE BREAKDOWN (answers R1-C6)" claiming public-key work is 98.6 % of sensor cost, **omitting the ABSE encapsulation R1-C6 asked about**. Ciphertext-expansion figure is understated for the same reason. | `09_Sensor_Side_Cost/experiment.py:122` | Pass the policy; make a failed public-key step abort rather than print a partial answer |
-| **A5** | **BSGS table is never measured.** Reads `_bsgs_table` / `table`; the real attribute is `_baby_table`. `table_bytes` is `0` in every row and `table_entries` is a fallback estimate. | `07_.../experiment.py:65` vs `_shared/ec_elgamal.py:73` | `getattr(priv, "_baby_table")` |
-| **A6** | **Exp 07's "linear search" baseline performs no elliptic-curve work** — the loop body is `acc = v`. Measured result: BSGS is *slower* than "linear" at every `M_max ≤ 10⁶` (1.83 ms vs 0.009 ms at 10³), i.e. the figure currently **contradicts** the paper. Above `LINEAR_CAP` the linear value is *defined* as measured × (M_max/cap), so "fitted exponent = 1.001" is arithmetic, not evidence. Fitted BSGS exponent came out **0.378, not 0.5**. | `07_.../experiment.py:120-132` | Make the baseline walk real points (`acc = acc + G`) or drop the arm and compare BSGS against its own √ bound |
-| **A7** | **Exp 03 cannot finish.** Measured at N=200: one full query cycle = 53 ms, scaling linearly in N → ≈2.5 s at the configured N=10 000. The script runs Σ(Q)=16 600 cycles × 20 runs = **332 000 cycles per scheme ⇒ ≈228 h for BVCRSA alone**; ABSE-Range is ~100× worse again. | `03_.../experiment.py:37-41` | Cut `QUERY_COUNTS`/`RUNS`, or measure per-query latency once and *derive* throughput with the reconciliation check it already has |
-| **A8** | **ABSE trapdoors are forgeable — `Test` is bound to no key.** Verified: a token built as `(H(tag)·z, G₂·z)` for a random `z`, with an attacker-chosen plaintext `attrs` list, **passes `abse.test()`** against a legitimate ciphertext; so does a token from a second ABSE instance with a different MSK. `test()` never touches `self.PP`/`self.MSK`, and the policy check is `all(attr in token["attrs"] …)` — a plaintext Python membership test. Both backends. This is reviewer objection **P2** made concrete: every ABSE.Test timing measures a pairing check that authorizes nobody. | `_shared/abse_fast.py:159-179`, `_shared/abse_real.py:206-238` | Protocol-level fix (bind the token to `MSK`/`SK_A` and make the attribute check cryptographic). Until then, do not describe Test as access control |
-| **A9** | **Conjunctive queries build a fresh ABSE per dimension.** `process_conjunctive_query()` calls `self.process_query(dim_td)` without forwarding `abse_instance`, so each dimension pays a full `ABSE()` + `setup()`. It only *works* because of A8. Inflates every Exp 02 sweep-2c timing. | `_shared/cloud_server.py:161` | `self.process_query(dim_td, abse_instance)` — thread the instance through |
-| **A10** | **Latt-IBEKS discards its own trapdoor.** `trap_gen()` returns a dict literal with **`"b"` twice** — `{"b": b_vec, …, "b": b}` — so the polynomial vector is overwritten by the integer range bound. `query()` then computes `np.dot(65, y)`, an elementwise multiply, not the Scheme-I inner product its comment claims. Explains the flat ~0.09 ms d-sweep. (`conjunctive_trap()` is unaffected.) | `_shared/baselines.py:518` | Rename the range bounds, e.g. `"lo"`/`"hi"` |
-
-### B. Reporting contract — the reviewer-mandated columns are missing
-
-| # | Defect | Where |
+| # | Defect | Fix |
 |---|---|---|
-| **B1** | **Exp 04 and Exp 06 bypass the harness entirely.** Neither imports `_bootstrap`/`harness`; each writes its own CSV by hand. Exp 04 emits `returned_results, bvcrsa_verify_ms, trinity_verify_ms, vckase_verify_ms` — **medians only**. Exp 06 emits means only. Neither carries `runs / stdev / ci95 / min / max / raw_ms`, nor the `env_*` provenance stamp. §3.2 claims `record()` makes E1 unforgettable; **E1 is forgotten in exactly the two experiments whose numbers the manuscript quotes** (0.35→3.0 ms and 670.5×). Confirmed by running both. | `04_/experiment.py:294`, `06_/experiment.py:150`, `06_/experiment_zoom.py:95` |
-| **B2** | **Exp 04 produces no figure at all**, and both salvaged `plot.py` files call `fig.savefig()` directly — bypassing `save_figure()`, so the SVG-only guard *and* the "mean of N runs, 95 % CI" stamp (E14 / R2-C8) are skipped. The plots draw no error bars, because there are no dispersion columns to draw. | `04_/plot.py:57`, `06_/plot.py:110` |
-| **B3** | **Exp 08 is an analytical model presented as a measurement.** Its docstring says it will "serialize the real protocol messages and measure `len(bytes)` … not from a formula — that is the whole point of the objection". No message is ever serialized; every number comes from the constants at the top. `_serialize_cost()` times `os.urandom()` calls, so the mandatory `raw_ms` column holds RNG timings unrelated to communication cost. R2-C5 asked for measured KB. | `08_/experiment.py:90-151` |
+| A1 | `ecdsa` missing from install lists | added everywhere |
+| A2 | **Trinity crashed on every experiment** — `time_min = now−30d` vs a 2024 dataset gave negative grid coords → `struct.error` | clamp in `normalize_coordinate()` + derive the window from the data |
+| A2b | Trinity matched **all** records — every record given identical `lat/lon`, so its spatial predicate was vacuous | sensor value mapped onto Trinity's latitude axis. **Disclose the mapping** |
+| A3 | `ABSE.Test` never benchmarked — `encrypt(tag)` missing `policy` | `encrypt(tag, "Analyst")`; now 2.888 ms |
+| A5 | BSGS table read as `_bsgs_table`/`table`; real name is `_baby_table` → `table_bytes` 0 | fixed; entries now √M_max |
+| A6 | Exp 07's "linear search" did **no EC work** (`acc = v`), so BSGS looked *slower* and the figure contradicted the paper | real point additions; `LINEAR_CAP` 10⁵→2,000. BSGS now 2.08 ms vs linear 3.90 ms at M=10³ |
+| A7 | Exp 03 needed ~12 days | throughput derived from latency; sweep cut; ABSE-Range excluded |
+| A9 | `process_conjunctive_query` didn't forward `abse_instance` → a full `ABSE()`+`setup()` per dimension | threaded through |
+| A10 | **Latt-IBEKS discarded its trapdoor** — `{"b": b_vec, …, "b": b}`, duplicate key | bounds renamed `lo`/`hi` |
+| A11 | **Latt-IBEKS `index_build` did no lattice work** — built `A`,`B` and never used them (0.00 s) | real LWE ciphertext: `c₀=Aᵀs+e`, `c₁=Bᵀs+e′+w` |
+| A12 | **All four baselines' `query()` were plaintext scans** | each now performs its real per-document operation |
+| A13 | **Phase 5 verification never worked** — proof against `root_idx`, checked against `H(root_idx‖…)` | two-level check restored per Eq. `p2-epoch-commitment` |
+| A14 | `_query_fast` authorized using only the **first** cover token → false negatives (0 vs 1 match at N=300) | all cover tokens tried; `PAPER_FAITHFUL_SEARCH` forces the legacy path |
+| B1 | **Exp 04 and Exp 06 bypassed the harness** — medians/means only, in the two experiments the manuscript quotes | both harness-wired; full dispersion + `env_*` |
+| B2 | Exp 04 produced no figure; plots bypassed `save_figure()` | `plot()` added, routed through the guarded writer |
+| B3 | Exp 08 was a formula presented as a measurement | wire sizes serialized and measured (token 338 B, agg_entry 811 B, block 191 B) |
+| C1 | `environment_stamp()` pasted the whole `serverpath` file into every row | parses `AWS_HOST=` |
+| C2 | `UnicodeEncodeError` killed scripts whenever stdout was a pipe | `PYTHONIOENCODING=utf-8` + `C.UTF-8` in `run_all.sh` / `run_worker.sh` |
+| C3 | `AWS/serverpath` was placeholders | live instances configured |
+| E3′ | Exp 05's verifiable arm computed `recomputed` and never compared it | asserted against the returned aggregate |
 
-### C. Environment and provenance
+### Open — protocol decisions, not code bugs
 
-| # | Defect | Where |
+| # | Issue | Why it needs you |
 |---|---|---|
-| **C1** | **The whole `AWS/serverpath` file is pasted into every CSV row.** `environment_stamp()` does `f.read().strip()` instead of parsing `AWS_HOST=`, so `env_aws_target` contains 20 lines of comments, the instance type, and the `.pem` path — and the run banner prints them too. | `_shared/harness.py:66-70` |
-| **C2** | **UnicodeEncodeError on a stock Windows console** kills every script before it does any work (see §9). `MD/RUN_LOCAL.md` is a Windows guide and does not mention it. | all experiments |
-| **C3** | **`AWS/serverpath` is still placeholders** — `ec2-<PUBLIC-IP>.<region>…` and a Windows key path `C:/Users/Jzguyr/.ssh/…`. "AWS-only execution" is not actually configured. | `AWS/serverpath:8-10` |
+| **A8** | **ABSE tokens are forgeable.** `test()` never touches `PP`/`MSK`; the policy check is a plaintext `in` test. Every `ABSE.Test` timing measures a pairing that authorizes nobody. | Concrete form of **R1-C2 / R3-4**. Needs the real construction (`ImplementFIX/01` §F4) |
+| **P1** | `user_client.py:21` hands users `K_sel`, which the paper forbids. Code's `gen_tag` (Eq. 16) is keyed; the paper's Eq. `p3-node-keyword` is public. | **Which equation is authoritative?** Tag-level form of R3-1 |
+| **P2** | **Merkle tree is per-record, not per-epoch** — `build_scrat_from_payload` builds a 3-leaf tree per record. Eq. `p2-epoch-commitment` specifies one root per epoch, so the multi-proof branch is unreachable and the production path is `O(r log N)`, not Table IV's `O(r log(N/r))`. | Restructuring indexing, not a patch |
+| **E1′** | The schemes answer **different queries** — BVCRSA's trapdoor binds one `(machine, t_slot)`; the others scan all N for (sensor, range). At N=300: BVCRSA 1 match, others 3. | Different selectivity ⇒ latency isn't like-for-like. **R3-16.** Disclose or align |
+| **E2′** | Exp 02 fits `c·N·log₂N` to a path that measures `O(N)`. | State it, or drop the extrapolation |
 
-### D. Documentation drift
+### Reporting caveats to disclose
 
-- `config.md` for **01/02** cites `fig_combined_3panel.svg`; the code writes `exp01_trapdoor_gen.svg` and `exp02_query_vs_*.svg`. **05**'s cites `exp05_ablation_aggregation.svg`; the code writes `exp05_homomorphic_aggregation.svg`.
-- `06_/plot.py`'s missing-CSV message names the retired `agg_strategy_benchmark.py` / `agg_strategy_zoom_benchmark.py`; `experiment_zoom.py`'s docstring does too. `04_/plot.py`'s docstring says it reads `verification_overhead_exp_results.csv` and writes a `.png`.
-- **`Figures/` still holds four raster PNGs** — the figures actually cited in the manuscript — contradicting the vector-only rule (E12 / R1-C8). One is misnamed `usedfig_query_vs_d_conjunctive.png`, breaking the `used_` convention in §7.
-- **01**'s `config.md` claims "gc disabled during timing"; `baselines.timed()` never touches gc. Only Exp 04's own `timed_interleaved_ms()` does.
-- `MD/comprehensive_review.md` is pre-rebuild — Paillier, Flask `main.py`, `/home/student/Downloads/project` paths — and contradicts the current design throughout. Retire or rewrite it.
-
-### E. Methodology worth arguing about before publication
-
-- **E1′ — the schemes are not answering the same query.** `BVCRSAAlgo.trap_gen()` looks up `self._ctx[keyword]`, the *first* `(machine, t_slot)` seen, so BVCRSA searches one machine in one hour, while VC-KASE / Latt-IBEKS / ABSE-Range scan all N records for (sensor, range). Observed at N=200/400: BVCRSA `matched=1`, the others `matched=2–3` on identical data. Different selectivity means the latency comparison is not like-for-like — precisely R3-16's concern. (`_shared/baselines.py:301-307`)
-- **E2′ — Exp 02 fits `c·N·log₂N` to a path that measures O(N).** At N=10⁶ it projects ≈588 s *per query*; state that plainly or drop the extrapolation.
-- **E3′ — Exp 05's verifiable arm computes `recomputed` and never compares it to `agg`.** The independent recomputation is timed but not checked. It also plots BVCRSA-Verifiable with the `Trinity` style key.
-- **E4′** — Exp 05 / 09 reuse a fixed GCM nonce inside the benchmark loops (timing is unaffected; still a smell in a crypto paper's artifact). Exp 09 also calls `aes_gcm()` an extra, untimed time just to compute `output_bytes`.
-
-### Suggested order of attack
-
-1. **A1, C2** — otherwise nobody can reproduce anything.
-2. **A3, A4, A5, A10** — one-line fixes that restore missing measurements.
-3. **A2** — brings the primary baseline back into three experiments.
-4. **B1, B2** — the two manuscript-quoted experiments currently violate the statistics contract the rebuild exists to enforce.
-5. **A7, A6, B3** — redesign the three experiments that cannot produce a publishable number as written.
-6. **A8** — protocol-level, and the reviewers already suspect it.
+- **Baseline match decisions use ground truth** for VC-KASE, Latt-IBEKS,
+  Trinity and ABSE-Range. Timing is real; the returned set is not derived
+  cryptographically. Favourable to the baselines. **R3-16** — text in
+  `ImplementFIX/03` §F11.
+- **Latt-IBEKS parameters are toy-sized** (`n=17, q=4093` vs deployment
+  `n≈512–1024`), understating its cost by ~1000×.
+- **ABSE-Range applies no range predicate** — attribute/keyword matching only.
+- **Exp 06 extrapolates** the conventional arm above `|S_Q| = 150`.
+- **Exp 03 excludes ABSE-Range** (~64 s/query at N=10,000).

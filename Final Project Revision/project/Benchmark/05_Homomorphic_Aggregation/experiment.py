@@ -139,6 +139,11 @@ def main():
                 proof = tree.get_proof(i)
                 if not tree.verify_proof(leaves[i], proof, root):
                     raise AssertionError(f"entry {i} failed Merkle verification")
+            # The independent recomputation is worthless unless it is
+            # actually compared against what the cloud returned -- that
+            # comparison IS the verification (R1-C3).
+            if recomputed.ciphertext() != agg.ciphertext():
+                raise AssertionError("independent recomputation != returned CT_sum")
             return tdec(agg), tdec(cnt)
 
         s = _bench(verifiable, (expected_sum, r))

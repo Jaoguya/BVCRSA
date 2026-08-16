@@ -65,16 +65,17 @@ import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _SHARED = os.path.join(os.path.dirname(BASE_DIR), "_shared")
-_CSVDIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "CSV")
-_FIGDIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "Figures")
 sys.path.insert(0, _SHARED)
+
+import math
+from baselines import summarize
+from harness import Experiment, new_figure, save_figure, style
 
 # ── Experimental Parameters ──
 N_TOTAL = 10_000
 RESULT_COUNTS = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
 RUNS = 300
 WARMUP_RUNS = 10
-CSV_FILE = os.path.join(_CSVDIR, "exp04_verification_overhead.csv")
 
 random.seed(42)
 
@@ -114,7 +115,11 @@ def timed_interleaved_ms(fns, runs=RUNS, warmup=WARMUP_RUNS):
     finally:
         if gc_was_enabled:
             gc.enable()
-    return {name: statistics.median(vals) for name, vals in samples.items()}
+    # Return the FULL sample per scheme, not just the median. Emitting a
+    # median alone is what made this experiment violate the statistics
+    # contract (R1-C4, R2-C2, R3-17, R7-C4) -- in the very experiment whose
+    # numbers the manuscript quotes.
+    return {name: summarize(vals) for name, vals in samples.items()}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -129,6 +134,7 @@ from TA import TrustedAuthority
 from blockchain_edge import BlockchainEdgeManager
 from sensor import sensor_encrypt
 from merkle_tree import MerkleTree
+from ec_elgamal import ECEncryptedNumber
 
 # Phase 1: Setup (TA key generation)
 _ta = TrustedAuthority()
@@ -172,21 +178,57 @@ for r in RESULT_COUNTS:
     idxs = evenly_spaced_indices(r, _n_leaves)
     leaves = {i: _leaf_strs[i] for i in idxs}
     mp = _verify_tree.get_multi_proof(idxs)
-    _bvcrsa_precomputed[r] = {"leaves": leaves, "multi_proof": mp}
+    _bvcrsa_precomputed[r] = {
+        "leaves": leaves,
+        "multi_proof": mp,
+        "idxs": idxs,
+        # Serialized aggregation entries as they arrive over the wire. The
+        # client must deserialize and homomorphically recombine these to
+        # check CT_sum / CT_count independently (R1-C3).
+        "entries": [(_all_nodes[i]["CT_v"], _all_nodes[i]["Cnt_u"]) for i in idxs],
+        "positions": set(idxs),
+    }
 print("[setup] BVCRSA setup complete.")
 
 
 def bvcrsa_verify(r):
-    """TIMED: Verify r selected leaves against the Merkle root using
-    the production MerkleTree.verify_multi_proof(), then verify the
-    blockchain-anchored root signature (constant-cost HMAC-SHA256).
+    """TIMED: the COMPLETE client-side verification of a query result.
+
+    Covers every step the response letter claims for R1-C3:
+      1. process all r = |S_Q| selected aggregation entries
+      2. check their positions
+      3. verify the aggregation Merkle multi-proof
+      4. independently recompute CT_sum and CT_count
+
+    Steps 1, 2 and 4 were previously absent -- this function measured only
+    the multi-proof and the root signature, so a claim that the reported
+    cost included homomorphic recomputation would have been unsupported.
     """
     pre = _bvcrsa_precomputed[r]
-    # Step 1: Merkle multi-proof verification — O(r·log(N/r))
+
+    # Step 1+2: process each returned entry and check its position lies in
+    # the selected set. O(r).
+    positions = pre["positions"]
+    for i in pre["idxs"]:
+        if i not in positions:
+            raise AssertionError(f"entry {i} outside the selected position set")
+
+    # Step 3: Merkle multi-proof verification — O(r·log(N/r))
     assert MerkleTree.verify_multi_proof(
         pre["leaves"], pre["multi_proof"], _verify_root
     )
-    # Step 2: Blockchain-root epoch-commitment signature check — O(1)
+
+    # Step 4: independent homomorphic recomputation of CT_sum and CT_count.
+    # Deserialization is inside the timed region because the client really
+    # does receive these as wire-format strings. O(r) EC point additions.
+    ct_sum = ct_cnt = None
+    for v_str, c_str in pre["entries"]:
+        v = ECEncryptedNumber.from_string(_ta.ec_pubkey, v_str)
+        c = ECEncryptedNumber.from_string(_ta.ec_pubkey, c_str)
+        ct_sum = v if ct_sum is None else ct_sum + v
+        ct_cnt = c if ct_cnt is None else ct_cnt + c
+
+    # Step 5: blockchain-root epoch-commitment signature check — O(1)
     hmac.new(
         _gw_signing_key, _verify_root.encode(), hashlib.sha256
     ).digest()
@@ -268,35 +310,34 @@ def main():
     print("  Sampling:       Interleaved (BVCRSA→Trinity→VC-KASE per round)")
     print("=" * 66)
 
-    rows = []
+    exp = Experiment(4, "verification_overhead",
+                     ["scheme", "returned_results", "statistic",
+                      "hash_ops", "pairing_ops"])
+
+    label = {"bvcrsa": "BVCRSA", "trinity": "Trinity", "vckase": "VC-KASE"}
     for r in RESULT_COUNTS:
         results = timed_interleaved_ms({
             "bvcrsa": lambda r=r: bvcrsa_verify(r),
             "trinity": lambda r=r: trinity_verify(r),
             "vckase": lambda r=r: vckase_verify(r),
         })
-        bvcrsa_ms = results["bvcrsa"]
-        trinity_ms = results["trinity"]
-        vckase_ms = results["vckase"]
-        rows.append({
-            "returned_results": r,
-            "bvcrsa_verify_ms": round(bvcrsa_ms, 4),
-            "trinity_verify_ms": round(trinity_ms, 4),
-            "vckase_verify_ms": round(vckase_ms, 4),
-        })
+        for key, stats in results.items():
+            exp.record(stats,
+                       scheme=label[key],
+                       returned_results=r,
+                       statistic="median reported; mean/stdev/ci95 also given",
+                       hash_ops=(r + int(r * math.log2(max(N_TOTAL / max(r, 1), 2))))
+                                 if key == "bvcrsa" else "",
+                       pairing_ops=VCKASE_PAIRINGS_PER_QUERY if key == "vckase" else "")
         print(
             f"  |R_Q|={r:>4d}  "
-            f"BVCRSA={bvcrsa_ms:>8.3f}ms  "
-            f"Trinity={trinity_ms:>9.3f}ms  "
-            f"VC-KASE={vckase_ms:>7.3f}ms"
+            f"BVCRSA={results['bvcrsa']['median_ms']:>8.3f}ms  "
+            f"Trinity={results['trinity']['median_ms']:>9.3f}ms  "
+            f"VC-KASE={results['vckase']['median_ms']:>7.3f}ms"
         )
 
-    with open(CSV_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-    print(f"\n[+] Results saved to {CSV_FILE}")
+    exp.save()
+    plot(exp.rows)
     print("\n[Experimental Conditions Summary]")
     print(f"    Database size:       N = {N_TOTAL}")
     print(f"    SCRAT nodes built:   {_n_leaves}")
@@ -307,6 +348,26 @@ def main():
     print(f"    BVCRSA verification: MerkleTree.verify_multi_proof()")
     print(f"    Trinity verification: AES-GCM decrypt + content-check")
     print(f"    VC-KASE verification: {VCKASE_PAIRINGS_PER_QUERY} BLS12-381 pairings (fixed)")
+
+
+def plot(rows):
+    """Vector figure with 95% CI error bars, via the guarded writer."""
+    fig, ax = new_figure()
+    for name in ("BVCRSA", "Trinity", "VC-KASE"):
+        pts = sorted((r for r in rows if r["scheme"] == name),
+                     key=lambda r: r["returned_results"])
+        if not pts:
+            continue
+        st = style(name)
+        ax.errorbar([p["returned_results"] for p in pts],
+                    [p["median_ms"] for p in pts],
+                    yerr=[p["ci95_ms"] for p in pts],
+                    label=name, capsize=3, color=st["color"],
+                    marker=st["marker"], linestyle=st["ls"])
+    ax.set_xlabel("Number of returned results $|R_Q|$")
+    ax.set_ylabel("Verification time (ms)")
+    ax.legend(framealpha=0.9)
+    save_figure(fig, "exp04_verification_overhead.svg", runs=RUNS)
 
 
 if __name__ == "__main__":

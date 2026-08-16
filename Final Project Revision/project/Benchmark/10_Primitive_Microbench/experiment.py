@@ -191,19 +191,27 @@ def _pairing_fn():
 
 
 def _abse_test_fn():
+    """One ABSE.Test call -- named explicitly by R2-C3.
+
+    Signature is abse.encrypt(tag, policy) and abse.test(token, ct); the
+    policy must be one the user's attribute set satisfies, or test() returns
+    False without doing the full pairing work and the timing is meaningless.
+    """
     try:
         from TA import TrustedAuthority
         ta = TrustedAuthority()
         secrets = ta.key_gen(["Analyst", "Temp"])
         abse = ta.abse
         tag = "Temp|0|10"
-        ct = abse.encrypt(tag) if hasattr(abse, "encrypt") else None
-        tok = abse.token_gen(secrets.get("SK_A"), tag)
-        if ct is None or not hasattr(abse, "test"):
-            return None, ""
-        return (lambda: abse.test(tok, ct)), "single Test call"
+        ct = abse.encrypt(tag, "Analyst")
+        tok = abse.token_gen(secrets["SK_A"], tag)
+        ok = abse.test(tok, ct)
+        if not ok:
+            print("    WARNING: ABSE.Test returned False -- the timing below "
+                  "is a rejection path, not a successful match.")
+        return (lambda: abse.test(tok, ct)), f"single Test call (match={ok})"
     except Exception as e:
-        print(f"    ABSE.Test unavailable: {e}")
+        print(f"    ABSE.Test unavailable: {type(e).__name__}: {e}")
         return None, ""
 
 

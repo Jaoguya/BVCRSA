@@ -62,11 +62,18 @@ def environment_stamp():
     R1-C5 and R3-15 both fault the paper for inconsistent hardware/parameter
     reporting. Recording the environment per-run makes that unarguable.
     """
+    # Parse AWS_HOST= rather than slurping the file -- reading it whole
+    # pasted 20 lines of comments, the instance type and the .pem path into
+    # every CSV row and the run banner.
     aws_host = None
     if os.path.exists(AWS_PATHFILE):
         try:
             with open(AWS_PATHFILE) as f:
-                aws_host = f.read().strip() or None
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("AWS_HOST="):
+                        aws_host = line.split("=", 1)[1].strip() or None
+                        break
         except OSError:
             pass
     try:

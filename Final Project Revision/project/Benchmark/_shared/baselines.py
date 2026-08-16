@@ -495,13 +495,45 @@ class LatticeIBEKSAlgo:
         return int(hashlib.sha256(str(keyword).encode()).hexdigest(), 16) % self.q
 
     def index_build(self, records):
+        """Real LWE ciphertext construction per record.
+
+        The previous version built the public matrices A and B in setup() and
+        then never used them: index construction was one SHA-256 plus six
+        small modular exponentiations, which is why it reported 0.00 s for
+        300 records. No lattice operation was performed anywhere, so the
+        "post-quantum" baseline cost was not being measured at all.
+
+        Latt-IBEKS index construction is LWE encryption under the public
+        matrices:
+            s <- Z_q^n              secret vector
+            e, e' <- chi            small noise
+            c_0 = A^T s + e
+            c_1 = B^T s + e' + encode(w)
+        Each ciphertext is therefore two matrix-vector products of dimension
+        n_dim x m over Z_q. That is the dominant cost of the real scheme and
+        it is what this now performs.
+        """
         self.index = []
+        At, Bt = self.A.T, self.B.T          # (m x n_dim), hoisted
         for rec in records:
             x_w = self.hash_H2(rec["sensor"])
+
+            # Keyword encoding vector (used by the trapdoor inner product)
             y_0 = np.array([(x_w ** i) % self.q for i in range(self.N_kw + 1)])
             y = np.zeros(self.n_dim, dtype=int)
             y[:len(y_0)] = y_0
-            self.index.append({"y": y, "sensor": rec["sensor"], "value": rec["value"]})
+
+            # LWE ciphertext -- the real lattice work
+            s = np.random.randint(0, self.q, self.n_dim)
+            e0 = np.random.randint(-2, 3, self.m)
+            e1 = np.random.randint(-2, 3, self.m)
+            c0 = (At.dot(s) + e0) % self.q
+            c1 = (Bt.dot(s) + e1 + x_w) % self.q
+
+            self.index.append({
+                "y": y, "c0": c0, "c1": c1,
+                "sensor": rec["sensor"], "value": rec["value"],
+            })
         return len(records)
 
     def _poly_vec(self, roots):
@@ -515,16 +547,22 @@ class LatticeIBEKSAlgo:
 
     def trap_gen(self, keyword, a, b):
         b_vec = self._poly_vec([self.hash_H2(w) for w in [keyword, str(a), str(b)]])
-        return {"b": b_vec, "keyword": keyword, "a": a, "b": b}
+        # NOTE: the range bounds are "lo"/"hi", not "a"/"b". Using "b" here
+        # collided with the trapdoor polynomial vector, so the dict literal
+        # silently overwrote b_vec with the integer upper bound and query()
+        # then computed an elementwise multiply instead of the Scheme-I
+        # inner product.
+        return {"b": b_vec, "keyword": keyword, "lo": a, "hi": b}
 
     def query(self, td):
         matched = 0
         for ct in self.index:
-            # Real lattice work: the Scheme-I test is an inner product of the
-            # trapdoor vector with the ciphertext vector over Z_q. The old
-            # harness skipped this entirely and compared plaintext values.
+            # Real lattice work: the search test is an inner product of the
+            # trapdoor vector against the keyword encoding, plus the LWE
+            # ciphertext combination the server must evaluate per document.
             np.dot(td["b"], ct["y"]) % self.q
-            if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"]:
+            (ct["c1"] - ct["c0"]) % self.q
+            if ct["sensor"] == td["keyword"] and td["lo"] <= ct["value"] <= td["hi"]:
                 matched += 1
         return matched
 
@@ -552,29 +590,66 @@ class LatticeIBEKSAlgo:
 class TrinityAlgo:
     name = "Trinity"
 
+    # Sensor values live in [0,100]; map them onto a 1-degree latitude band
+    # so a numeric range query becomes a spatial one.
+    LAT_MIN, LAT_MAX = 13.0, 14.0
+    DOMAIN_MAX = 100.0
+
     def setup(self, kw_count=2):
         self.scheme = TrinityI()
         self.scheme.setup(256, 8, 10)
 
+    def _to_lat(self, value):
+        return self.LAT_MIN + (value / self.DOMAIN_MAX) * (self.LAT_MAX - self.LAT_MIN)
+
     def index_build(self, records):
+        # TrinityI.setup() defaults its time window to [now-30d, now+1d].
+        # Datarecord.csv starts at 2024-01-01, far outside that window, so
+        # every timestamp normalised to a negative grid coordinate and
+        # SHVE.encrypt() failed with a struct.error. Fit the window to the
+        # data before indexing -- Trinity's own design assumes the window
+        # covers the corpus.
+        ts = [int(r["timestamp"].timestamp()) for r in records]
+        if ts:
+            lo, hi = min(ts), max(ts)
+            pad = max(1, (hi - lo) // 20)
+            self.scheme.time_min = lo - pad
+            self.scheme.time_max = hi + pad
+
+        # Map the sensor VALUE onto Trinity's latitude dimension so that the
+        # numeric range predicate [a,b] becomes a spatial range predicate.
+        # Previously every record was given latitude 13.5 and longitude 100.0,
+        # which made Trinity's spatial predicate vacuous -- it matched the
+        # entire corpus on every query and its "range query" cost was really
+        # a full scan. Trinity is a spatio-temporal scheme; to compare it on
+        # the same question BVCRSA answers, the queried attribute has to live
+        # on one of its axes. DISCLOSE THIS MAPPING (R3-16).
+        self.scheme.lat_min, self.scheme.lat_max = self.LAT_MIN, self.LAT_MAX
+
         self.entries = [self.scheme.gen_index({
-            "device_id": f"{rec['id']}", "latitude": 13.5, "longitude": 100.0,
+            "device_id": f"{rec['id']}",
+            "latitude": self._to_lat(rec["value"]),
+            "longitude": 100.0,
             "timestamp": int(rec["timestamp"].timestamp()),
             "keywords": [rec["sensor"]],
         }) for rec in records]
         return len(self.entries)
 
     def trap_gen(self, keyword, a, b):
-        now = int(datetime.now().timestamp())
+        # Query the window the data actually occupies, not "the last two
+        # hours" -- with a 2024 corpus the latter selects nothing.
+        t_lo = getattr(self.scheme, "time_min", int(datetime.now().timestamp()))
+        t_hi = getattr(self.scheme, "time_max", t_lo + 3600)
         td = self.scheme.gen_trap({
-            "lat_range": (13.4, 13.6), "lon_range": (99.9, 100.1),
-            "time_range": (now - 7200, now + 3600), "keywords": [keyword],
+            "lat_range": (self._to_lat(a), self._to_lat(b)),
+            "lon_range": (99.9, 100.1),
+            "time_range": (t_lo, t_hi), "keywords": [keyword],
         })
         # SHVE predicate token -- Trinity's server-side match is SHVE.Match
         # per candidate, not a plaintext Hilbert comparison.
         try:
             td["_shve_token"] = self.scheme.shve.token_gen(
-                self.scheme.K_shve, (13, 100, now))
+                self.scheme.K_shve, (13, 100, (t_lo + t_hi) // 2))
         except Exception:
             td["_shve_token"] = None
         return td

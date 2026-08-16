@@ -68,8 +68,68 @@ def canonical_nodes(range_pct, leaf_width=10, domain=100):
     return max(1, len(range(lo, hi, leaf_width)))
 
 
+def measure_wire_sizes():
+    """Serialize REAL protocol artifacts and measure len(bytes).
+
+    The previous version derived every number from hand-written constants
+    while its own docstring claimed it serialized real messages -- exactly
+    what R2-C5 objected to. Unit sizes are now measured from artifacts the
+    production pipeline actually produces; totals are those measured units
+    multiplied by counted quantities.
+    """
+    import json
+    from TA import TrustedAuthority
+    from blockchain_edge import BlockchainEdgeManager
+    from user_client import UserClient
+    from sensor import compute_canonical_path
+
+    ta = TrustedAuthority()
+    secrets = ta.key_gen(["Analyst", "Temp"])
+    edge = BlockchainEdgeManager(secrets, secrets["abse"])
+    client = UserClient(secrets)
+
+    node = edge.build_scrat_from_payload({
+        "ct_aes": "dummy",
+        "ct_v": ta.ec_pubkey.encrypt(42).ciphertext(),
+        "ctx": {"m": "M1", "k": "Temp", "t": "2024-01-01 00"},
+        "path": compute_canonical_path(42),
+        "seq": 1, "hmac": b"",
+    })[0]
+
+    td = client.generate_trapdoor("M1", "Temp", "2024-01-01 00", 35, 65)
+    tok = td["tokens"][0]
+
+    enc = lambda o: len(json.dumps(o, default=str).encode())
+
+    sizes = {
+        # one ABSE query token, as it goes on the wire
+        "token": enc({k: tok[k] for k in ("T1", "T2", "attrs")}),
+        # one protected bitmap block + its version counter + commitment
+        "block": enc({"B": node["B_tilde"], "v": 0, "s": node["sigma"]}),
+        # one authenticated aggregation entry A_i
+        "agg_entry": enc({"pos": 0, "rid": node["search_tag"], "e": 0,
+                          "h": node["sigma"], "ctv": node["CT_v"],
+                          "ct1": node["Cnt_u"]}),
+        # one aggregate ciphertext
+        "ct_ahe": enc(node["CT_v"]),
+        # one Merkle proof node
+        "hash": enc(node["root_idx"]) // 1,
+        # epoch header carried in the request
+        "header": enc({"e": 0, "N": 0, "beta": 0, "nblk": 0,
+                       "root": node["root"], "qid": node["sigma"], "texp": 0}),
+        # one full encrypted record, for the naive comparison
+        "record": enc({"hdr": node["search_tag"], "ct": "x" * 256,
+                       "ctv": node["CT_v"]}),
+    }
+    print("  measured wire sizes (bytes):")
+    for k, v in sizes.items():
+        print(f"    {k:<12} {v:>8}")
+    return sizes
+
+
 def main():
     random.seed(SEED)
+    W = measure_wire_sizes()
 
     exp = Experiment(8, "communication_cost", [
         "N", "r", "d", "m_c", "matched_nodes", "n_blk",
@@ -88,25 +148,24 @@ def main():
                 continue
 
             # ---- Request: m_c tokens + epoch header + selected positions ----
-            header = EPOCH + 4 + 4 + 4 + HASH + RID + 8   # e_q,N,beta,n_blk,Root,qid,t_exp
-            request = header + m_c * TOKEN + r * POS
+            header = W["header"]
+            request = header + m_c * W["token"] + r * POS
 
             # ---- Response 1: protected bitmap blocks + Merkle proofs ----
-            block_bytes = BLOCK_BITS // 8
-            per_node = n_blk * (block_bytes + VERSION + HASH)
+            per_node = n_blk * W["block"]
             proof_depth = max(1, math.ceil(math.log2(max(n_blk, 2))))
-            per_node += proof_depth * HASH
-            response1 = matched_nodes * per_node + HASH + SIG
+            per_node += proof_depth * W["hash"]
+            response1 = matched_nodes * per_node + W["hash"] + SIG
 
             # ---- Response 2: r aggregation entries + multiproof + aggregates ----
-            agg_entry = POS + RID + EPOCH + HASH + CT_AHE + CT_AHE
-            multiproof = int(r * math.log2(max(N / max(r, 1), 2))) * HASH
-            response2 = r * agg_entry + multiproof + 2 * CT_AHE + SIG
+            agg_entry = W["agg_entry"]
+            multiproof = int(r * math.log2(max(N / max(r, 1), 2))) * W["hash"]
+            response2 = r * agg_entry + multiproof + 2 * W["ct_ahe"] + SIG
 
             total = request + response1 + response2
 
             # Naive alternative: ship every matched encrypted record.
-            record_ct = 256 + HASH + CT_AHE      # AES-GCM blob + hdr + CT_v
+            record_ct = W["record"]
             naive = r * record_ct + response1
 
             saving = (naive - total) / naive * 100 if naive else 0.0

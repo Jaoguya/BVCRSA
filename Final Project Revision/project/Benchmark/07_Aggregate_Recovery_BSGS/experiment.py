@@ -38,7 +38,7 @@ WARMUP = 2
 # Linear search at M_max = 10^7 is slow by construction. Above this bound we
 # measure a capped prefix and extrapolate linearly, disclosed in the CSV and
 # the caption -- the same discipline Experiment 06 applies.
-LINEAR_CAP = 10 ** 5
+LINEAR_CAP = 2_000
 
 # The paper's stated operating point: N <= 2e4 records, V_max = 100.
 # NOTE: if Experiment 02's N range is corrected to 1e5 (R1-C5 / R3-15) this
@@ -62,7 +62,9 @@ def main():
         pub, priv = generate_ec_elgamal_keypair(max_val=M_max)
         build_ms = (time.perf_counter() - t0) * 1000.0
 
-        table = getattr(priv, "_bsgs_table", None) or getattr(priv, "table", None)
+        # The attribute is _baby_table (ec_elgamal.py:73). Reading the wrong
+        # names made table_bytes 0 in every row and table_entries a guess.
+        table = getattr(priv, "_baby_table", None)
         entries = len(table) if table is not None else int(math.isqrt(M_max)) + 1
         table_bytes = sys.getsizeof(table) if table is not None else 0
         print(f"    table: {entries:,} entries, {table_bytes / 1024:.1f} KiB, "
@@ -120,16 +122,29 @@ def main():
 def _linear_recover(pub, target, bound):
     """Naive scan: walk vG for v = 0,1,2,... until the point matches.
 
-    Deliberately unoptimized -- this is the baseline the paper claims BSGS
-    replaces, so it must be the honest naive algorithm.
+    The loop body was previously `acc = v` -- an integer assignment doing no
+    elliptic-curve work at all. That made "linear search" faster than BSGS at
+    every M_max <= 10^6 and produced a figure that CONTRADICTED the paper.
+    Each step now performs a real EC point addition, which is what the naive
+    recovery algorithm actually costs.
     """
-    G = pub.G if hasattr(pub, "G") else None
+    G = _curve_generator(pub)
     acc = None
     for v in range(bound + 1):
         if v == target:
             return v
-        acc = v  # placeholder step; cost model is the loop itself
-    return acc
+        acc = G if acc is None else acc + G      # real EC point addition
+    return None
+
+
+def _curve_generator(pub):
+    """Base point of the curve the public key lives on."""
+    for attr in ("G", "g", "_G", "generator"):
+        g = getattr(pub, attr, None)
+        if g is not None:
+            return g
+    from ecdsa import NIST256p
+    return NIST256p.generator
 
 
 def fit(rows):

@@ -1,0 +1,31 @@
+======================================================================
+  Experiment 10 — Primitive Microbench
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+
+  ABSE backend: py_arkworks_bls12381  (BLS12-381)
+  NOTE: the manuscript claims py_ecc over BN128. If this line says BLS12-381, the paper's text is wrong (see SKILL.md).
+    bilinear pairing                      1.009609 ms  ±0.004787  (sd=0.034543)
+    ABSE.Test                             2.480109 ms  ±0.006272  (sd=0.045252)
+    ABSE.TokenGen                         0.705438 ms  ±0.004870  (sd=0.035135)
+    Merkle verify (1 leaf)                0.007754 ms  ±0.000144  (sd=0.001043)
+    SHA-256                               0.000458 ms  ±0.000085  (sd=0.000612)
+    HMAC-SHA256                           0.001533 ms  ±0.000056  (sd=0.000404)
+    bitmap AND (100,000 bits)             0.001187 ms  ±0.000019  (sd=0.000141)
+    bitmap AND + popcount                 0.310585 ms  ±0.002687  (sd=0.019390)
+    EC-ElGamal encrypt                    1.682778 ms  ±0.020055  (sd=0.072351)
+    EC-ElGamal add                        0.012182 ms  ±0.000162  (sd=0.001169)
+    threshold decrypt                    24.492476 ms  ±0.060745  (sd=0.138602)
+
+[+] 11 rows -> /home/ubuntu/bvcrsa/CSV/exp10_primitive_microbench.csv
+
+======================================================================
+  RECONCILIATION — expected totals from primitive costs
+======================================================================
+  Exp 01 trapdoor, d=5 (m_c=20 TokenGen):    14.1088 ms expected
+  Exp 02 query, exhaustive match N_u*m_c = 1000*4:  9920.4367 ms expected
+     ^ if the measured query time is far below this, the harness is not doing exhaustive ABSE matching (R1-C4, R3-14)
+  Exp 04 verify, r=500 naive single proofs:     3.8771 ms expected (multiproof should be lower)
+  Exp 05/06 BVCRSA arm, 2 threshold decrypts:    48.9850 ms expected floor
+[+] figure -> /home/ubuntu/bvcrsa/Figures/exp10_primitive_microbench.svg

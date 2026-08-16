@@ -1,0 +1,4 @@
+worker=W1 host=ip-172-31-12-27 started=2026-08-16 18:26:08 UTC
+python=Python 3.12.3
+---------------------------------------------------------------
+10_Primitive_Microbench__experiment        OK         2s

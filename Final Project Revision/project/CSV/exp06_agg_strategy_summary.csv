@@ -1,0 +1,3 @@
+SQ,normal_calls,bvcrsa_calls,normal_latency_ms,bvcrsa_latency_ms,speedup
+5,5,2,179.1599,71.764,2.5
+10,10,2,359.1722,71.1504,5.05

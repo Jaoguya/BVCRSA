@@ -8,9 +8,21 @@
 
 | | |
 |---|---|
-| Independent | query count `Q` ∈ **{100, 500, 1,000, 5,000, 10,000}** |
+| Independent | query count `Q` ∈ **{5, 10, 25, 50}** |
 | Fixed | `N = 10,000`; range 30 % (`[35,65]`); `d = 1`; kw = `Temp` |
 | Metric | completed queries per second |
+| Runs | 10 (reduced from 20) |
+
+## ⚠️ Sweep reduced — disclose in the caption
+
+The original sweep was `Q ∈ {100, 500, 1000, 5000, 10000}` with `RUNS = 20`.
+Those values assumed a query cost of 0.0067 ms — the dictionary-lookup
+artefact. A **real** query costs ~300 ms at `N = 10,000`, making the original
+sweep ≈ 27 hours per scheme, ≈ 6 days for all five. It is not runnable.
+
+The reduced sweep still spans an order of magnitude in workload, which is what
+the figure claims. State the workload range honestly in the caption; do not
+imply 10,000-query workloads were measured.
 
 ## Schemes
 
@@ -45,7 +57,11 @@ query processing.
 ## Statistics
 
 ```
-RUNS = 20 repetitions of each Q-workload    WARMUP = 2
+RUNS = 5 repetitions of each Q-workload    WARMUP = 1
+SKIP_SCHEMES = {"ABSE-Range"}   # ~64 s/query at N=10,000 -- costs more than
+                                # every other scheme combined. Its single-query
+                                # latency is reported from Exp 2 instead.
+                                # SAY THIS IN THE CAPTION.
 report mean, stdev, ci95, min, max, raw
 ```
 

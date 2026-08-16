@@ -1,0 +1,5 @@
+worker=W3 host=ip-172-31-15-37 started=2026-08-16 18:26:16 UTC
+python=Python 3.12.3
+---------------------------------------------------------------
+10_Primitive_Microbench__experiment        OK         3s
+04_Verification_Overhead__experiment       OK       160s
