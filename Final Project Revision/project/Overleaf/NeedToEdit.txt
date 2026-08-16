@@ -1,0 +1,481 @@
+================================================================================
+  BVCRSA -- NeedToEdit
+  Consolidated list of manuscript edits for the major revision.
+  Companion files: ../ImplementFIX/01..06, ../ReviewerFeedBack/Reviewer_N/
+================================================================================
+
+HOW TO USE
+  Work top-down. Each item gives the section, what is wrong, and the
+  replacement text. Items marked [BLOCKING] must be done for acceptance.
+  Items marked [DECISION] need your call before the text can be written.
+
+  Placeholders <LIKE_THIS> must be filled from measured data after the
+  experiments run.
+
+
+================================================================================
+  PART A -- FACTUAL CORRECTIONS (the paper currently states things that
+  are not true of the implementation)
+================================================================================
+
+--------------------------------------------------------------------------------
+A1. [BLOCKING] Pairing curve and library
+    Section: V, Experimental Setup
+    Reviewer: R1-C2, R2-C3
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS:
+  "Attribute-based searchable encryption was implemented with py_ecc over
+   the BN128 bilinear curve"
+
+THIS IS FALSE. Verified at runtime on 2026-08-16: TA.py prefers abse_fast.py,
+which uses BLS12-381 via the Rust library py_arkworks_bls12381. The test
+pipeline prints "ABSE: abse_fast bilinear pairings (real)".
+
+REPLACE WITH:
+  "Attribute-based searchable encryption was implemented over the BLS12-381
+   bilinear curve using the Rust-native py_arkworks_bls12381 library
+   (128-bit security), with a pure-Python py_ecc BN128 implementation
+   retained as a fallback. All reported measurements use the BLS12-381
+   backend."
+
+WHY THIS HELPS: R2-C3 argues sub-millisecond latency is implausible "for a
+Python/py_ecc stack". Disclosing that pairings run in compiled Rust is part
+of the answer -- but only if you say it.
+
+
+--------------------------------------------------------------------------------
+A2. [BLOCKING] Dataset size
+    Section: V, Experimental Setup
+    Reviewer: R1-C5, R3-15
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS:
+  "The database size ranged from 10^3 to 2x10^4 records. Performance was
+   evaluated with respect to database size (N=10^3--2x10^4), ..."
+
+CONTRADICTS the results section, which reports up to 10^5.
+
+REPLACE WITH:
+  "The database size ranged from 10^3 to 10^5 records. Performance was
+   evaluated with respect to database size (N=10^3--10^5), ..."
+
+KNOCK-ON -- same subsection, BSGS bound:
+  CURRENTLY: "(N<=2x10^4, V_max=100), the maximum aggregate sum is 2x10^6,
+              requiring approximately sqrt(2x10^6)~=1.4x10^3 baby-step entries"
+  REPLACE:   "(N<=10^5, V_max=100), the maximum aggregate sum is 10^7,
+              requiring approximately sqrt(10^7)~=3.2x10^3 baby-step entries"
+
+ALSO update Benchmark/07_Aggregate_Recovery_BSGS/experiment.py:
+  PAPER_OPERATING_POINT = 2 * 10 ** 6   ->   10 ** 7
+
+
+--------------------------------------------------------------------------------
+A3. [BLOCKING] Hardware description
+    Section: V, Experimental Setup
+    Reviewer: R1-C5, R3-15
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS: a heterogeneous Raspberry Pi 4 / Core i7 laptop / Xeon server
+split. Execution is now AWS-only, so this is false.
+
+REPLACE WITH:
+  "All experiments were conducted on a single Amazon EC2 <INSTANCE_TYPE>
+   instance (<vCPU> vCPUs, <RAM> GB RAM, Ubuntu 22.04 LTS), so that every
+   reported measurement is taken under an identical hardware and software
+   configuration. The sole exception is the sensor-side cost evaluation of
+   Section <N>, which is performed on a Raspberry Pi 4 Model B (4 GB RAM) to
+   characterise performance on resource-constrained IIoT hardware."
+
+Fill <> from AWS/serverpath. Every result CSV records host, platform, Python
+version and git revision, so the claim is auditable.
+
+IF YOU DO NOT KEEP A RASPBERRY PI: delete the exception sentence and state in
+the sensor-side subsection that sensor-class hardware was not measured.
+
+
+--------------------------------------------------------------------------------
+A4. [BLOCKING] Run counts and statistics
+    Section: V, Experimental Setup + every figure caption
+    Reviewer: R2-C2, R2-C8, R7-C4
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS: "All results represent the average of 20 independent runs."
+NOT TRUE for three experiments.
+
+REPLACE WITH:
+  "Unless stated otherwise, all results represent the mean of 20 independent
+   runs, reported with 95% confidence intervals; raw per-run measurements are
+   released with the source code. Experiments whose per-operation cost is at
+   or below timer resolution use a larger sample: verification overhead
+   (Section <N>) reports the median of 300 runs, and the per-primitive
+   microbenchmarks (Section <N>) the mean of 200 runs."
+
+ACTUAL COUNTS:
+  Exp 1,2,3,5,6,7,8,11 -- 20 runs, mean +/- 95% CI
+  Exp 4               -- 300 runs, MEDIAN
+  Exp 9               -- 50 runs
+  Exp 10              -- 200 runs
+
+Every figure caption must state its own count and statistic.
+
+
+================================================================================
+  PART B -- PROTOCOL AND SECURITY  [ALL BLOCKING]
+  Full LaTeX in ../ImplementFIX/01_Protocol_Fixes.md and 02_Proof_Fixes.md
+================================================================================
+
+B1. Gateway cannot verify sensor HMAC tags  (R1-C1)
+    Phase 1 Step 4 gives K_HMAC^(i) only to sensors, but Phase 2 Step 2 has
+    the gateway verify with it. The step cannot execute.
+    FIX: provision the gateway with a master K_HMAC^mas and derive per-sensor
+    keys. Full LaTeX in ImplementFIX/01 section F5.
+    CONSEQUENCE: the gateway can then forge sensor packets. Theorem 1 must
+    narrow its adversary class to exclude the gateway.
+
+B2. ABSE is only an abstract interface  (R1-C2, R3-4, R3-5)
+    No concrete scheme, so every security theorem is conditional.
+    FIX: full instantiation written in ImplementFIX/01 section F4 -- Setup,
+    KeyGen, Index/Token/Test, Enc/Dec, DBDH assumption, collusion argument.
+    Must be checked against abse_fast.py before submission.
+
+B3. Aggregation authorization bypass  (R3-1)  *** MOST SERIOUS ***
+    The user may present any position set S_Q with no proof it came from an
+    authorized query. Theorem 6 proves the aggregate is correct with respect
+    to the PRESENTED S_Q, which is the wrong statement.
+    FIX: new Phase 4 Step 4 (cloud recomputes B_Q and rejects S_Q not a
+    subset), plus a new Theorem (Aggregation Authorization).
+    LaTeX in ImplementFIX/01 F1 and 02.
+
+    *** RELATED IMPLEMENTATION BUG, found 2026-08-16 ***
+    user_client.py line 21 does  self.Ks = secrets["Ks"]  -- the code hands
+    users the gateway selector key K_sel. The paper explicitly says
+    "K_sel is never distributed to users". With K_sel a user can compute tags
+    for ANY node, authorized or not. This is the tag-level version of the
+    same bypass and MUST be fixed in code as well as in the text.
+
+B4. Node and record policies not bound  (R3-2)
+    A user satisfying P_u can aggregate records whose P_i they do not satisfy.
+    FIX: containment invariant P_u => P_i, enforced at index construction.
+
+B5. TDAs do not verify query authorization  (R3-3)
+    Authorities are an unconditional decryption oracle.
+    FIX: authorization attestation checked before partial release.
+    NOTE the residual boundary: the attestation is signed by the cloud, which
+    is malicious in the threat model, so this stops unauthorized users, not
+    cloud-user collusion. State that limit explicitly.
+
+B6. Completeness claim overstated  (R7-C1, R7-C2, R3-9)
+    Abstract and contributions claim "authenticated completeness" without
+    qualification. VQSA only proves the cloud returned what the GATEWAY
+    committed.
+    FIX: add "relative to the gateway-committed state" in the abstract,
+    contribution 4, and Theorem 7. Add the scope remark from ImplementFIX/01 F6.
+
+B7. Theorem 2 needs a simulator argument  (R5-3, R3-6)
+    FIX: real-or-simulated indistinguishability with explicit hybrids, plus a
+    remark conceding that U_Q reveals the queried range to canonical-node
+    granularity. Full proof sketch in ImplementFIX/02.
+
+B8. Leakage understated  (R3-6, R3-7, R3-8)
+    ADD two subsections: user-side leakage (a user reconstructs the FULL
+    bitmap of every authorized node, learning membership beyond its query)
+    and gateway-side leakage. Text in ImplementFIX/03 F17.
+
+B9. No revocation  (R3-10)  [DECISION]
+    Node keys K_u are epoch-independent, so a revoked user keeps them.
+    EITHER declare the limitation, OR make keys epoch-bound -- but the latter
+    forces re-masking every block each epoch and destroys the low-update-
+    overhead claim (R3-11). Recommend declaring the limitation.
+
+B10. No update/delete workflow  (R7-C3)
+     ADD the invalidation procedure from ImplementFIX/03 F18, including the
+     remark that version binding does not achieve retroactive forgetting.
+
+
+================================================================================
+  PART C -- EVALUATION  [THE NUMBERS HAVE CHANGED]
+================================================================================
+
+--------------------------------------------------------------------------------
+C1. [BLOCKING] Query processing and throughput figures are invalid
+    Reviewer: R1-C4, R2-C3, R3-13, R3-14
+--------------------------------------------------------------------------------
+
+The benchmark harness never called the query implementation. BVCRSAAlgo.query()
+was a dictionary lookup performing no ABSE.Test, no bitmap reconstruction and
+no pairings. cloud_server.process_query() -- the actual Phase 4 code -- was
+never invoked by any experiment.
+
+Worse: the harness built canonical nodes as [l, l+10] while the client cover
+uses [l, l+9], so the PRF tags could never agree. Every reported "match" came
+from the harness's own dict lookup, not from tag agreement.
+
+MEASURED after wiring to the production path (BLS12-381, Datarecord.csv):
+
+    N       nodes    trapdoor    query        matched
+    200       600     4.80 ms     61.1 ms       1
+    500     1,500     4.48 ms    156.6 ms       2
+    1,000   3,000     4.15 ms    311.4 ms       6
+
+  Query @ N=10^3 : paper 0.02 ms   -> measured 311 ms   (~15,000x)
+  Throughput     : paper 923,343 q/s -> measured ~3 q/s (~300,000x)
+  Trapdoor @ d=1 : paper 0.9 ms    -> measured 4.2 ms   (~5x, roughly honest)
+
+ACTION: every query-processing and throughput number must be regenerated.
+Do NOT publish corrected numbers silently -- reviewers who computed
+O(N_u * m_c) by hand will notice a four-order-of-magnitude shift.
+
+USE YOUR OWN EXISTING SENTENCE when reporting the slower figures. Section V
+already says:
+  "Without an additional privacy-preserving lookup mechanism, a token may
+   need to be tested against all N_u node indexes ... The dominant O(N_u m_c)
+   matching cost can be further reduced through a privacy-preserving indexed
+   ABSE lookup mechanism."
+That is already your stated position. Lean on it.
+
+
+--------------------------------------------------------------------------------
+C2. [BLOCKING] Baseline comparison was plaintext-vs-plaintext
+    Reviewer: R3-16, R5-2
+--------------------------------------------------------------------------------
+
+None of the four baselines performed cryptographic work in query():
+  VC-KASE / Latt-IBEKS -- compared ct["value"] in plaintext
+  Trinity              -- compared Hilbert integers
+  ABSE-Range           -- counted every document whose search() did not raise
+
+All four now perform their real per-document search operation, so the TIMING
+is genuine. The MATCH DECISION for the baselines is taken from ground truth,
+because these are reimplementations from published descriptions whose
+synthetic parameters do not decrypt to a correct result set.
+
+THIS MUST BE DISCLOSED. Add to Section V (full text in ImplementFIX/03 F11):
+
+  "For reproducibility we note the following baseline implementation choices.
+   Trinity is implemented as Trinity-I. VC-KASE is implemented with a
+   prime-order group instantiated by modular exponentiation rather than a
+   bilinear pairing; its verification cost is measured using real BLS12-381
+   pairings. Latt-IBEKS follows Scheme-II for conjunctive queries with lattice
+   dimension n=17 and modulus q=4093, which is smaller than a
+   deployment-grade LWE parameterisation and therefore understates its cost.
+   ABSE-Range performs attribute and keyword matching with real BLS12-381
+   pairings but does not apply the numeric range predicate. For these three
+   schemes the reported timings measure real cryptographic work while the
+   returned result set is determined by ground truth; this is favourable to
+   the baselines. BVCRSA derives its result set from real ABSE.Test tag
+   agreement with no such assistance."
+
+Omitting this makes the "comparable security settings" claim false.
+
+
+--------------------------------------------------------------------------------
+C3. [BLOCKING] Communication cost must be numeric
+    Reviewer: R1-C7, R2-C5    Table V
+--------------------------------------------------------------------------------
+
+Table V is purely asymptotic -- the only cost dimension in the paper with no
+measured numbers. Replace the O(.) cells with measured KB from Experiment 8
+at N=10,000 and |R_Q| in {100, 500}.
+
+EXPECT response 1 to dominate, because every matched canonical node ships all
+n_blk blocks regardless of how many bits are set. STATE THAT PLAINLY -- R1-C7
+and R3-12 already suspect it.
+
+
+--------------------------------------------------------------------------------
+C4. [BLOCKING] Sensor-side cost is understated
+    Reviewer: R1-C6
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS sensors perform "only data acquisition, symmetric encryption,
+and authenticated metadata generation". Phase 2 Step 1 requires TWO public-key
+operations per record: ABSE.Enc for the record key, and EC-ElGamal for CT_v.
+
+ADD a subsection reporting the complete per-record procedure split into
+symmetric and public-key work, with time, memory and ciphertext expansion,
+from Experiment 9.
+
+*** ENERGY -- NO POWER METER AVAILABLE ***
+R1-C6 asks for energy consumption. Without a meter, DO NOT estimate it.
+Write instead:
+
+  "Energy consumption was not measured, as the instrumentation required for
+   accurate power profiling on the target device was unavailable. We report
+   per-operation latency and memory footprint, from which energy can be
+   derived given a device-specific active-power figure."
+
+An unmeasured energy number that a reviewer can challenge is worse than an
+acknowledged omission. Reporting latency and memory answers most of C6.
+
+
+--------------------------------------------------------------------------------
+C5. Aggregation figures  (R2-C7)
+--------------------------------------------------------------------------------
+
+Fig. 7 (aggregation strategy) WAS generated under real (t,n)=(3,5) threshold
+EC-ElGamal -- the 670.5x figure stands. Say so explicitly; the reviewer asked
+for confirmation.
+
+Fig. 6 (aggregation ablation) was NOT -- it used single-key EC-ElGamal. It has
+been rewritten against threshold_ec_elgamal.py and must be regenerated. The
+values will move.
+
+ALSO DISCLOSE Fig. 7's sampling policy: for |S_Q| > 150 the conventional arm
+is measured on 150 real threshold decryptions and linearly extrapolated. An
+undisclosed extrapolation behind the headline number invites challenge.
+
+
+--------------------------------------------------------------------------------
+C6. Blockchain cost never measured  (R7-C5, R4-2)
+--------------------------------------------------------------------------------
+
+Every reported number was taken with the chain DISABLED (use_ethereum=False).
+The paper contains zero empirical blockchain measurements while making claims
+about anchoring overhead.
+
+ADD a subsection from Experiment 11: gas per epoch anchor, anchor latency,
+finality, ledger growth per year, cross-node sync latency.
+
+R7-C5 requires a MULTI-NODE consortium. A single-node re-run does not answer
+it. Needs 3+ Ethereum nodes.
+
+
+--------------------------------------------------------------------------------
+C7. Extrapolate to 10^6-10^7  (R2-C4)
+--------------------------------------------------------------------------------
+
+Experiment 2 fits t(N) = c * N * log2(N) from the measured points and projects
+to 10^6 and 10^7. Plot as a DASHED continuation and label it as extrapolation,
+not measurement. The reviewer explicitly said this "would cost the authors
+nothing computationally".
+
+
+--------------------------------------------------------------------------------
+C8. Per-primitive microbenchmarks  (R2-C3, R1-C4)
+--------------------------------------------------------------------------------
+
+ADD a subsection from Experiment 10: single pairing, single ABSE.Test, single
+ABSE.TokenGen, single Merkle verify, bitmap AND over 100k bits, EC-ElGamal
+encrypt/add, threshold decrypt.
+
+This is the reconciliation table for the whole paper -- it lets a reader
+multiply operation counts by unit costs and check every reported total by
+hand, which is exactly what R2-C3 asked for.
+
+
+================================================================================
+  PART D -- FIGURES
+================================================================================
+
+D1. [BLOCKING] THE DOCUMENT DOES NOT CURRENTLY COMPILE.
+    Three figures are \includegraphics'd but absent:
+      modelAHE.pdf            (Fig. 1, system model)  -- hand-drawn, never committed
+      fig_combined_3panel.png (trapdoor/query panels) -- hand-composited
+      bsgs_scalability.png    (Fig. 8, BSGS)          -- NO SCRIPT EVER PRODUCED IT
+    Also \graphicspath{{all_figures/}} points at a directory that no longer
+    exists; figures now live in ../Figures/.
+
+D2. [BLOCKING] All figures must be TRUE VECTOR (SVG / EPS / vector PDF).
+    R1-C8: "Figures have low resolution, small labels, and limited
+    readability... Raster screenshots should be avoided."
+    The plotting harness now refuses raster output. For Overleaf, convert:
+      inkscape f.svg --export-type=pdf --export-filename=f.pdf
+
+D3. Redraw modelAHE as vector. Must show the seven entities and mark:
+    gateway holds K_sel (single point of trust), gateway honest-but-curious
+    vs cloud malicious, TA setup-only, t-of-n threshold.
+
+D4. Every caption must state its run count and statistic (see A4).
+
+D5. Add error bars (95% CI) to every curve -- R7-C4, R2-C2.
+
+
+================================================================================
+  PART E -- EDITORIAL
+================================================================================
+
+E1. Adopted vs novel components  (R2-C1)
+    Add ONE explicit paragraph at the end of Section I. Full text in
+    ImplementFIX/03 F10. The reviewer says this "would take five minutes".
+
+E2. Measurement-scope disclaimer  (R5-2)
+    State at the start of Section V what is inside the timed region, that
+    network and blockchain are excluded and reported separately, and that
+    baselines differ in functionality. Text in ImplementFIX/03 F11.
+
+E3. Bitmap reconstruction as one procedure  (R5-1)
+    The mechanism is currently spread across four equation blocks. Add the
+    self-contained algorithm from ImplementFIX/03 F12, ending with the
+    statement that K_sel is never disclosed to users.
+    *** See B3 -- the code currently violates this. Fix both. ***
+
+E4. Notation sweep  (R4-1)
+    Pick ONE form per quantity and apply everywhere including axis labels:
+      matched nodes    -> \mathcal{U}_Q   (not U_Q)
+      cover size       -> m_c             (not \sum_j \ell_j)
+      matched records  -> |R_Q|           (not r, not |S_Q|)
+      block count      -> n_b             (pick one)
+      selected posns   -> \mathcal{S}_Q
+    The r / |R_Q| / |S_Q| collision matters most: Figs. 6 and 7 currently
+    label the same variable two different ways, which is part of why R3-13
+    reads the numbers as inconsistent.
+
+E5. Tie Figs. 7 and 8 to Table IV  (R2-C6)
+    Fig. 7(a): decryption-call counts are the empirical realisation of the
+    O(1) vs O(r) threshold-decrypt terms.
+    Fig. 8: Experiment 7 fits the growth exponent by log-log regression and
+    prints it. Quote the measured value: BSGS b=<X> (theory 0.5),
+    linear b=<Y> (theory 1.0).
+
+E6. Proofread  (R4-3). Confirmed defects:
+    Section I    "primarily optimize encrypted retrieval encrypted retrieval"
+                 -> delete the duplicate
+    Section III-C "To ease of understanding, Table Table~\ref{tab:notation}"
+                 -> "For ease of understanding, Table~\ref{tab:notation}"
+    Section V    prose says "Table IV" while the label resolves to
+                 tab:complexity_comparison -- check every hard-coded number
+    The \DeclareUnicodeCharacter directives at the top strip LTR/RTL marks,
+    a sign invisible characters were pasted in. Re-scan before submitting.
+
+
+================================================================================
+  PART F -- DECISIONS REQUIRED FROM THE AUTHORS
+================================================================================
+
+F1. Trinity baseline. It currently CRASHES on index construction:
+      trinity.py:210 shve.encrypt ->
+      struct.error: 'I' format requires 0 <= number <= 4294967295
+    Pre-existing, unrelated to the rebuild. Likely normalize_coordinate on
+    the timestamp, since Datarecord.csv begins exactly at the 2024-01-01
+    window boundary Trinity assumes. Fix it, or drop Trinity as a baseline
+    and remove it from Tables I, IV and V.
+
+F2. Revocation (B9): declare the limitation, or make node keys epoch-bound
+    and re-measure index maintenance.
+
+F3. Raspberry Pi for Experiment 9: keep one, or drop the heterogeneous
+    hardware claim entirely. (Energy is already resolved -- see C4.)
+
+F4. Multi-node blockchain for Experiment 11: stand up 3+ nodes, or state
+    that consortium-scale behaviour was not evaluated.
+
+
+================================================================================
+  PART G -- NOT A PAPER EDIT, BUT DO IT
+================================================================================
+
+G1. ROTATE THE MONGODB CREDENTIALS. A live Atlas connection string with
+    username and password was committed in benchmark_paper.py and the ECGRQ
+    config.py. Removing the files does not remove them from git history.
+
+G2. Fix user_client.py line 21 (self.Ks = secrets["Ks"]) -- see B3.
+
+G3. blockchain_edge.py has NO multi-proof implementation; it attaches only
+    per-node pi_u, and user_client's multi_proof branch is dead code.
+    Table IV claims O(r log(N/r)) verification, but the production path is
+    O(r log N). Either implement multi-proof generation, or correct Table IV.
+
+================================================================================
+  END
+================================================================================

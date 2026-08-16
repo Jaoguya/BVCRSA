@@ -398,7 +398,15 @@ class BlockchainEdgeManager:
         epoch_root = hashlib.sha256(f"{root_idx}|{root_agg}|{self.epoch}".encode()).hexdigest()
 
         for i, n in enumerate(nodes):
+            # pi_u proves the leaf against root_idx -- the INDEX Merkle root.
+            # root (the epoch commitment anchored on-chain) is a hash OF
+            # root_idx, so a proof can never verify directly against it.
+            # Both are carried so the user can perform the two-level check of
+            # Eq. (p2-epoch-commitment): leaf -> root_idx -> epoch_root.
             n["pi_u"] = mt.get_proof(i)
+            n["root_idx"] = root_idx
+            n["root_agg"] = root_agg
+            n["epoch"] = self.epoch
             n["root"] = epoch_root
             del n["tag"]
 

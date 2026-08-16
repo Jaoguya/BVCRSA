@@ -10,6 +10,8 @@ Real crypto: ABSE.TokenGen with bilinear pairings (Eq. 30) -- BLS12-381
              PRF tags with SHA-256 (Eq. 15-17).
 """
 
+import hashlib
+
 from utils import gen_tag, gen_query_bitmap
 from merkle_tree import MerkleTree
 
@@ -99,7 +101,8 @@ class UserClient:
         if not nodes:
             return True
 
-        required = ("search_tag", "sigma", "CT_v", "Cnt_u", "pi_u", "root")
+        required = ("search_tag", "sigma", "CT_v", "Cnt_u", "pi_u",
+                    "root_idx", "root_agg", "epoch", "root")
         for n in nodes:
             missing = [f for f in required if f not in n]
             if missing:
@@ -111,23 +114,42 @@ class UserClient:
         def leaf_str(n):
             return f"{n['search_tag']}|{n['sigma']}|{n['CT_v']}|{n['Cnt_u']}"
 
-        roots = {n["root"] for n in nodes}
+        def check_epoch_binding(n):
+            """Bind the index root to the blockchain-anchored epoch commitment.
+
+            Eq. (p2-epoch-commitment): Root_e = H(Root_idx || Root_agg || e).
+            Verifying the Merkle path alone only proves the leaf is in SOME
+            tree; this step proves that tree is the one anchored on-chain.
+            """
+            recomputed = hashlib.sha256(
+                f"{n['root_idx']}|{n['root_agg']}|{n['epoch']}".encode()
+            ).hexdigest()
+            if recomputed != n["root"]:
+                raise ValueError(
+                    f"Epoch commitment mismatch for node "
+                    f"[{n.get('l')},{n.get('r')}] -- the index root does not "
+                    f"bind to the anchored epoch root (stale or forged epoch)"
+                )
+
+        roots = {n["root_idx"] for n in nodes}
         if len(roots) == 1 and "multi_proof" in nodes[0]:
             # Single shared multi-proof covering every returned node.
-            root = roots.pop()
+            root_idx = roots.pop()
             leaves = {n["multi_proof_index"]: leaf_str(n) for n in nodes}
-            if not MerkleTree.verify_multi_proof(leaves, nodes[0]["multi_proof"], root):
+            if not MerkleTree.verify_multi_proof(leaves, nodes[0]["multi_proof"], root_idx):
                 raise ValueError("Merkle multi-proof verification failed "
                                   "for returned node set")
+            check_epoch_binding(nodes[0])
             return True
 
         for n in nodes:
-            if not MerkleTree.verify_proof(leaf_str(n), n["pi_u"], n["root"]):
+            if not MerkleTree.verify_proof(leaf_str(n), n["pi_u"], n["root_idx"]):
                 raise ValueError(
                     f"Merkle proof verification failed for node "
                     f"[{n.get('l')},{n.get('r')}] -- omitted, substituted, "
                     f"or tampered aggregation ciphertext"
                 )
+            check_epoch_binding(n)
         return True
 
     def decrypt_aggregate(self, ct_sum_str, ct_cnt_str):

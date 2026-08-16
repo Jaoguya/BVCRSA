@@ -59,20 +59,32 @@ class CloudServer:
         auth_token = trapdoor.get("auth_token")
         expected_tags = set(trapdoor["search_tags"])
 
-        # Step 1: ONE ABSE.Test for authorization (Real BN128 pairings)
+        # Step 1: ABSE.Test for authorization (real pairings).
+        #
+        # BUGFIX: this previously tried ONLY auth_token -- the token for the
+        # FIRST canonical cover node. ABSE.Test succeeds on keyword equality
+        # AND policy satisfaction, so if that particular decile happened to
+        # hold no records the test failed against every document and the whole
+        # query returned empty. A false negative that depended purely on which
+        # decile the range started in. Measured at N=300: this path returned 0
+        # matches where the per-node path returned 1.
+        #
+        # Every cover token is now tried, so authorization succeeds whenever
+        # the user is authorized for ANY node present in the index.
+        candidate_tokens = trapdoor.get("tokens") or []
+        if auth_token:
+            candidate_tokens = [auth_token] + list(candidate_tokens)
+
         authorized = False
-        if auth_token and docs:
+        for tok in candidate_tokens:
+            if authorized:
+                break
+            token = {"T1": tok["T1"], "T2": tok["T2"], "attrs": tok["attrs"]}
             for doc in docs:
                 ct_tag = doc.get("CT_tag")
-                if ct_tag:
-                    token = {
-                        "T1": auth_token["T1"],
-                        "T2": auth_token["T2"],
-                        "attrs": auth_token["attrs"],
-                    }
-                    if abse.test(token, ct_tag):
-                        authorized = True
-                        break
+                if ct_tag and abse.test(token, ct_tag):
+                    authorized = True
+                    break
 
         if not authorized:
             return []

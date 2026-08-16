@@ -1,0 +1,19 @@
+# AWS EC2 target for BVCRSA experiments
+#
+# Update the three values below when the instance changes. Scripts and the
+# experiment harness read this file; nothing hardcodes an IP or key path.
+# harness.py stamps AWS_HOST into every result CSV so each run records the
+# machine it came from (answers R1-C5 / R3-15 on consistent hardware).
+
+AWS_HOST=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+AWS_USER=ubuntu
+AWS_KEY=C:/Users/Jzguyr/.ssh/bvcrsa-key.pem
+
+# Instance details — copy into the paper's Experimental Setup (F9)
+AWS_INSTANCE_TYPE=c7i.2xlarge
+AWS_VCPU=8
+AWS_RAM_GB=16
+AWS_OS=Ubuntu 22.04 LTS
+
+# Remote working directory
+AWS_REMOTE_DIR=/home/ubuntu/bvcrsa

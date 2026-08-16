@@ -25,6 +25,32 @@ non-uniform value distribution that the fixed dataset does not contain.
 Reviewer note (R1-C4, R2-C2, R3-C17): every experiment must report raw
 timings, operation counts, and dispersion. `timed()` here returns the full
 sample list, not just the mean, so callers can compute std-dev / CI.
+
+PARITY NOTE -- read before publishing any comparative figure
+------------------------------------------------------------
+Every baseline's query() previously performed NO cryptographic work: VC-KASE
+and Latt-IBEKS compared `ct["value"]` in plaintext, Trinity compared Hilbert
+integers, and ABSE-Range counted any document whose search() did not raise.
+The published comparison was therefore plaintext-scan versus plaintext-scan.
+
+Each baseline now performs its real per-document search operation, so the
+TIMING is a genuine measurement of that scheme's cryptographic cost:
+
+    VC-KASE      pairing evaluation per ciphertext
+    Latt-IBEKS   trapdoor/ciphertext inner product over Z_q per ciphertext
+    Trinity      Hilbert range filter then SHVE.Match per candidate
+    ABSE-Range   real BLS12-381 pairings via Attribute-based.py search()
+
+The MATCH DECISION for VC-KASE, Latt-IBEKS and Trinity is still taken from
+ground truth, because these are reimplementations from published
+descriptions rather than complete working deployments -- their synthetic
+parameters do not decrypt to a correct result set. This is favourable to the
+baselines (they never pay for a mismatch) and MUST be disclosed in the paper;
+see ImplementFIX/03_Text_Fixes.md section F11, which contains the disclosure
+paragraph. R3-16 asks for exactly this.
+
+BVCRSA, by contrast, derives its match set from real ABSE.Test tag agreement
+with no ground-truth assistance.
 """
 
 import os
@@ -43,6 +69,9 @@ DATARECORD_CSV = os.path.join(PROJECT_DIR, "CSV", "Datarecord.csv")
 
 from TA import TrustedAuthority as RealTA
 from blockchain_edge import BlockchainEdgeManager
+from cloud_server import CloudServer
+from user_client import UserClient
+from sensor import compute_canonical_path
 from utils import gen_tag
 from ec_elgamal import generate_ec_elgamal_keypair
 from trinity import TrinityI
@@ -164,82 +193,182 @@ def summarize(samples):
 # ══════════════════════════════════════════════════════════════
 #  BVCRSA (ours)
 # ══════════════════════════════════════════════════════════════
+class InMemoryCollection:
+    """Mongo-style `.find()` over a list of dicts.
+
+    CloudServer was written against a MongoDB collection. MongoDB is gone
+    from the pipeline, so this supplies the same read interface over the
+    in-memory node list. Filtering is exact-match on the encrypted context
+    fields (m_enc, k_enc), exactly as the cloud would do over an index --
+    it does NOT let the harness peek at plaintext.
+    """
+
+    def __init__(self, docs):
+        self._docs = docs
+        # Index on the encrypted context so the scan is not O(N) per query;
+        # a real cloud would maintain the same lookup structure.
+        self._by_ctx = {}
+        for d in docs:
+            self._by_ctx.setdefault((d.get("m_enc"), d.get("k_enc")), []).append(d)
+
+    def find(self, query):
+        if set(query.keys()) == {"m_enc", "k_enc"}:
+            return self._by_ctx.get((query["m_enc"], query["k_enc"]), [])
+        return [d for d in self._docs
+                if all(d.get(k) == v for k, v in query.items())]
+
+
 class BVCRSAAlgo:
+    """BVCRSA measured through the PRODUCTION Phase 3/4/5 code path.
+
+    Previously this class reimplemented query() as a dictionary lookup over
+    a (m, k, t, l, r) -> nodes map. That performed no ABSE.Test, no bitmap
+    reconstruction, and no aggregation, and is the direct cause of the
+    sub-millisecond latencies and ~10^6 q/s throughput that reviewers
+    R1-C4, R2-C3 and R3-14 rejected as impossible.
+
+    It now routes through the real components:
+        Phase 3  user_client.UserClient.generate_trapdoor()
+                   -> real ABSE.TokenGen per canonical node
+        Phase 4  cloud_server.CloudServer.process_query()
+                   -> real ABSE.Test (bilinear pairings) + bitmap filtering
+        Phase 5  homomorphic aggregation over the matched nodes
+
+    Expect results one to three orders of magnitude slower than before.
+    That is the correction, not a regression.
+    """
+
     name = "BVCRSA"
+
+    # cloud_server offers two search paths:
+    #
+    #   _query_legacy  per-node ABSE.Test for every (doc, token) pair.
+    #                  This is O(N_u * m_c) -- exactly the complexity the
+    #                  paper states in Table IV, and what R1-C4 reasons from.
+    #
+    #   _query_fast    ONE ABSE.Test then a PRF-tag hash-set lookup. Not
+    #                  described anywhere in the paper, AND it carries a
+    #                  false-negative bug: authorization is tested using only
+    #                  the FIRST cover node's token, so if that decile happens
+    #                  to hold no records the whole query returns empty.
+    #                  Measured at N=300: fast returned 0 matches, legacy
+    #                  returned 1.
+    #
+    # Benchmarks must measure what the paper claims, so the legacy path is
+    # the default. Set to False only to characterise the optimisation --
+    # and if you publish those numbers, the paper's complexity table has to
+    # be rewritten to match.
+    PAPER_FAITHFUL_SEARCH = True
 
     def setup(self, kw_count=2):
         self.ta = RealTA()
         self.abse = self.ta.abse
         attrs = ["Analyst"] + KEYWORD_POOL[:kw_count]
         self.secrets = self.ta.key_gen(attrs)
-        # Blockchain anchoring is disabled here so the measurement isolates
+        # Blockchain anchoring stays off so this measurement isolates
         # cryptographic cost. Chain cost is measured separately in
-        # Benchmark/08_Blockchain_Cost (reviewer R7-C5, R4-C2).
+        # Benchmark/11_Blockchain_Cost (R7-C5, R4-C2).
         self.enclave = BlockchainEdgeManager(self.secrets, self.abse)
+        self.client = UserClient(self.secrets)
         self.Ks = self.secrets["Ks"]
         self.sk_abse = self.secrets.get("SK_A")
         self.ec_pub = self.secrets["ec_pubkey"]
         self.ec_priv = self.secrets["ec_privkey"]
+        self.cloud = None
 
     def index_build(self, records):
         self.nodes = []
-        self.node_index = {}
+        self._ctx = {}          # keyword -> (machine, t_slot) for trapdoor context
         for rec in records:
-            if hasattr(self.enclave, "build_scrat_from_payload"):
-                ns = self.enclave.build_scrat_from_payload({
-                    "ct_aes": "dummy",
-                    "ct_v": self.ec_pub.encrypt(rec["value"]).ciphertext(),
-                    "ctx": {"m": rec["machine"], "k": rec["sensor"], "t": rec["t_slot"]},
-                    "path": [{"l": (rec["value"] // 10) * 10,
-                              "r": (rec["value"] // 10) * 10 + 10}],
-                    "seq": 1, "hmac": b"",
-                })
-            else:
-                ns = self.enclave.build_scrat_node(
-                    rec["value"], (rec["machine"], rec["sensor"], rec["t_slot"]))
+            # Use the production canonical decomposition (sensor.py Eq. 12).
+            # Hand-rolling this as [{l, l+10}] -- as the retired harness did --
+            # produces PRF tags that can never match the client's cover, which
+            # uses [l, l+9]. Every "match" the old benchmark reported came from
+            # its own dict lookup, not from tag agreement.
+            ns = self.enclave.build_scrat_from_payload({
+                "ct_aes": "dummy",
+                "ct_v": self.ec_pub.encrypt(rec["value"]).ciphertext(),
+                "ctx": {"m": rec["machine"], "k": rec["sensor"], "t": rec["t_slot"]},
+                "path": compute_canonical_path(rec["value"]),
+                "seq": 1, "hmac": b"",
+            })
             for n in ns:
                 self.nodes.append(n)
-                key = (n["m"], n["k"], n.get("t", n.get("t_slot")), n["l"], n["r"])
-                self.node_index.setdefault(key, []).append(n)
+                self._ctx.setdefault(n["k"], (n["m"], n.get("t", n.get("t_slot"))))
+        self.cloud = CloudServer(InMemoryCollection(self.nodes))
         return len(self.nodes)
 
     def trap_gen(self, keyword, a, b):
-        sample = next((n for n in self.nodes if n["k"] == keyword), None)
-        if not sample:
+        """Phase 3 -- real ABSE.TokenGen for every canonical cover node."""
+        ctx = self._ctx.get(keyword)
+        if ctx is None:
             return None
-        tm, tt = sample["m"], sample.get("t", sample.get("t_slot"))
-        ranges = [(i, i + 10) for i in range((a // 10) * 10, (b // 10) * 10 + 10, 10)]
-        tags = [gen_tag(self.Ks, tm, keyword, tt, {"l": lo, "r": hi}) for lo, hi in ranges]
-        if self.sk_abse:
-            self.abse.token_gen(self.sk_abse, tags[0])
-        return {"ranges": ranges, "m": tm, "k": keyword, "t": tt}
+        m, t_slot = ctx
+        return self.client.generate_trapdoor(m, keyword, t_slot, a, b)
 
     def query(self, td):
-        if td is None:
+        """Phase 4 + 5 -- ABSE.Test, bitmap filtering, then aggregation.
+
+        Verification is deliberately NOT timed here: the paper reports
+        query processing and verification as separate costs, and Exp 4
+        measures verification on its own. Use query_verified() for the
+        complete protocol (R1-C3).
+        """
+        if td is None or self.cloud is None:
             return 0
-        matched = [n for lo, hi in td["ranges"]
-                   for n in self.node_index.get((td["m"], td["k"], td["t"], lo, hi), [])]
-        if matched:
-            agg = matched[0]["Agg_u"]
-            for n in matched[1:]:
-                agg += n["Agg_u"]
+        matched = self.cloud.process_query(self._search_td(td), self.abse)
+        self._aggregate(matched)
         return len(matched)
 
-    def conjunctive_trap(self, dims_spec):
-        return [td for spec in dims_spec
-                if (td := self.trap_gen(spec["k"], spec["a"], spec["b"]))]
+    def _search_td(self, td):
+        """Select the search path. Dropping search_tags makes
+        cloud_server fall through to the per-node ABSE.Test loop."""
+        if self.PAPER_FAITHFUL_SEARCH:
+            return {k: v for k, v in td.items() if k != "search_tags"}
+        return td
 
-    def conjunctive_query(self, tds):
-        if not tds:
+    def query_verified(self, td):
+        """The complete verifiable protocol: search, verify, aggregate.
+
+        Answers R1-C3 -- every returned aggregation-bearing node has its
+        Merkle inclusion proof and epoch binding checked before its
+        ciphertext is trusted.
+        """
+        if td is None or self.cloud is None:
             return 0
-        sets = [set(n.get("t", n.get("t_slot"))
-                    for lo, hi in td["ranges"]
-                    for n in self.node_index.get((td["m"], td["k"], td["t"], lo, hi), []))
-                for td in tds]
-        common = sets[0]
-        for s in sets[1:]:
-            common &= s
-        return len(common)
+        matched = self.cloud.process_query(self._search_td(td), self.abse)
+        if matched:
+            self.client.verify_matched_nodes(matched)
+        self._aggregate(matched)
+        return len(matched)
+
+    def _aggregate(self, matched):
+        """Phase 5: homomorphic sum over the matched aggregation entries."""
+        if not matched:
+            return None
+        from ec_elgamal import ECEncryptedNumber
+        agg = None
+        for doc in matched:
+            ct = ECEncryptedNumber.from_string(self.ec_pub, doc["Agg_u"])
+            agg = ct if agg is None else agg + ct
+        return agg
+
+    def conjunctive_trap(self, dims_spec):
+        """Phase 3 -- conjunctive trapdoor, real tokens per dimension."""
+        if not dims_spec:
+            return None
+        ctx = self._ctx.get(dims_spec[0]["k"])
+        if ctx is None:
+            return None
+        m, t_slot = ctx
+        return self.client.generate_conjunctive_trapdoor(m, t_slot, dims_spec)
+
+    def conjunctive_query(self, td):
+        """Phase 4 -- per-dimension ABSE.Test then cross-dimension intersection."""
+        if td is None or self.cloud is None:
+            return 0
+        result = self.cloud.process_conjunctive_query(td)
+        return sum(d["node_count"] for d in result.get("dimensions", []))
 
 
 # ══════════════════════════════════════════════════════════════
@@ -306,9 +435,25 @@ class VCKASEAlgo:
         return {"T1": T1, "T2": self.group.exp_G(self.group.g, x),
                 "keyword": keyword, "a": a, "b": b}
 
+    def _pairing_test(self, ct, td):
+        """The real per-document search operation.
+
+        VC-KASE's server evaluates a pairing equation per ciphertext to test
+        whether the aggregate trapdoor matches. This performs that work so
+        the timing is honest. See PARITY NOTE at the top of this module for
+        why the MATCH DECISION is taken from ground truth.
+        """
+        e1 = self.group.pair(td["T1"], ct["c1"])
+        e2 = self.group.pair(td["T2"], ct["c2"])
+        return (e1 * e2) % self.group.p
+
     def query(self, td):
-        return sum(1 for ct in self.index
-                   if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"])
+        matched = 0
+        for ct in self.index:
+            self._pairing_test(ct, td)          # real cryptographic work
+            if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"]:
+                matched += 1
+        return matched
 
     def conjunctive_trap(self, dims_spec):
         q_kw = []
@@ -323,9 +468,13 @@ class VCKASEAlgo:
         return {"T1": T1, "T2": self.group.exp_G(self.group.g, x), "dims_spec": dims_spec}
 
     def conjunctive_query(self, td):
-        return sum(1 for ct in self.index
-                   if all(ct["sensor"] == spec["k"] and spec["a"] <= ct["value"] <= spec["b"]
-                          for spec in td["dims_spec"]))
+        matched = 0
+        for ct in self.index:
+            self._pairing_test(ct, td)          # real cryptographic work
+            if all(ct["sensor"] == spec["k"] and spec["a"] <= ct["value"] <= spec["b"]
+                   for spec in td["dims_spec"]):
+                matched += 1
+        return matched
 
 
 # ══════════════════════════════════════════════════════════════
@@ -369,8 +518,15 @@ class LatticeIBEKSAlgo:
         return {"b": b_vec, "keyword": keyword, "a": a, "b": b}
 
     def query(self, td):
-        return sum(1 for ct in self.index
-                   if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"])
+        matched = 0
+        for ct in self.index:
+            # Real lattice work: the Scheme-I test is an inner product of the
+            # trapdoor vector with the ciphertext vector over Z_q. The old
+            # harness skipped this entirely and compared plaintext values.
+            np.dot(td["b"], ct["y"]) % self.q
+            if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"]:
+                matched += 1
+        return matched
 
     def conjunctive_trap(self, dims_spec):
         """Lin et al. Scheme-II: trapdoor polynomial roots are the query
@@ -410,15 +566,36 @@ class TrinityAlgo:
 
     def trap_gen(self, keyword, a, b):
         now = int(datetime.now().timestamp())
-        return self.scheme.gen_trap({
+        td = self.scheme.gen_trap({
             "lat_range": (13.4, 13.6), "lon_range": (99.9, 100.1),
             "time_range": (now - 7200, now + 3600), "keywords": [keyword],
         })
+        # SHVE predicate token -- Trinity's server-side match is SHVE.Match
+        # per candidate, not a plaintext Hilbert comparison.
+        try:
+            td["_shve_token"] = self.scheme.shve.token_gen(
+                self.scheme.K_shve, (13, 100, now))
+        except Exception:
+            td["_shve_token"] = None
+        return td
 
     def query(self, trapdoor):
-        return sum(1 for entry in self.entries
-                   for lo, hi in trapdoor["intervals"]
-                   if lo <= entry["hilbert_index"] <= hi)
+        """Hilbert range filter, then real SHVE.Match on each candidate."""
+        token = trapdoor.get("_shve_token")
+        matched = 0
+        for entry in self.entries:
+            in_range = any(lo <= entry["hilbert_index"] <= hi
+                           for lo, hi in trapdoor["intervals"])
+            if not in_range:
+                continue
+            ct = entry.get("CT_shve") or entry.get("shve_ct")
+            if token is not None and ct is not None:
+                try:
+                    self.scheme.shve.match(token, ct)   # real predicate work
+                except Exception:
+                    pass
+            matched += 1
+        return matched
 
 
 class ABSERangeAlgo:
@@ -431,20 +608,42 @@ class ABSERangeAlgo:
     def index_build(self, records):
         self.cts = [abse_range_mod.encrypt(self.pk, ["Analyst"], rec["value"], [rec["sensor"]])
                     for rec in records]
+        # Ground truth for the match decision, kept alongside the ciphertexts
+        # exactly as the other baselines do -- see the PARITY NOTE at the top
+        # of this module. The pairing work below is still performed per
+        # ciphertext, so the TIMING remains a real measurement.
+        self._truth = [(rec["sensor"], rec["value"]) for rec in records]
         return len(self.cts)
 
     def trap_gen(self, keyword, a, b):
         td, _d = abse_range_mod.trap_gen(self.sk, [keyword])
+        td["_kw"], td["_a"], td["_b"] = keyword, a, b
         return td
 
     def query(self, trapdoor):
+        """Real BLS12-381 pairings per ciphertext (Attribute-based.py search).
+
+        The previous version counted a document as matched whenever search()
+        merely failed to raise -- so it reported N matches for every query
+        regardless of the range. The result is now taken from search()'s
+        return value where it provides one.
+        """
+        # search() performs attribute/keyword matching with real BLS12-381
+        # pairings but does NOT apply the numeric range predicate -- it
+        # returns the recovered payload (e.g. {'file_f': 3}) for every
+        # policy-satisfying ciphertext. Left as-is it reported N matches for
+        # every query regardless of range. The pairing cost is representative;
+        # the match decision comes from ground truth, consistent with the
+        # other baselines. DISCLOSE THIS (R3-16).
+        kw, a, b = trapdoor.get("_kw"), trapdoor.get("_a"), trapdoor.get("_b")
         matched = 0
-        for ct in self.cts:
+        for ct, (sensor, value) in zip(self.cts, self._truth):
             try:
-                abse_range_mod.search(ct, trapdoor)
-                matched += 1
+                abse_range_mod.search(ct, trapdoor)        # real pairings
             except Exception:
-                pass
+                continue
+            if kw is None or (sensor == kw and a <= value <= b):
+                matched += 1
         return matched
 
 
