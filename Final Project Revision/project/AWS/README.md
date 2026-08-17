@@ -136,17 +136,50 @@ experiment from measured per-primitive costs. If a later result lands orders
 of magnitude below its floor, the harness is measuring the wrong thing — which
 is exactly the defect R1-C4 and R3-14 identified.
 
-### Expected durations (rough, `c7i.2xlarge`)
+### Expected durations
 
-| Experiment | Time |
+⚠️ **These are ~10× the 2026-08-16 figures.** That run used the old
+baselines, whose `query()` did almost no work (VC-KASE's "pairing" was a
+single modexp; Latt-IBEKS's trapdoor was `np.poly`). Against the real
+implementations, VC-KASE's query is **410× slower** and Trinity's **35×
+slower**. Estimated below by extrapolating measured N=1,000 costs, with a
+1.5× factor for AWS over the dev box.
+
+| Experiment | Est. time |
 |---|---|
-| 10 microbench | minutes |
-| 1 trapdoor | minutes |
-| 4 verification (300 runs × 10 points × 3 schemes) | ~1 h |
-| 6 aggregation strategy (real threshold decryptions) | several hours |
-| 2 query processing (index builds to N=100k) | **many hours** — the 100k index build alone is ~13 min per scheme |
+| 03 throughput | **23.9 h** |
+| 02 query processing | **19.8 h** |
+| 06 aggregation strategy (+zoom) | 0.7 h |
+| 05 aggregation | 0.4 h |
+| 07 BSGS | 0.1 h |
+| 01 trapdoor · 04 verification · 08 communication · 10 microbench | minutes each |
+| **Serial total** | **≈ 45 h** |
 
-Start 2 and 6 overnight in tmux.
+**Trinity is ~80% of the bill.** Per-query cost, AWS-adjusted:
+
+| scheme | N=1,000 | N=10,000 | N=100,000 |
+|---|---|---|---|
+| **Trinity** | 11.6 s | **116.5 s** | **1,164.9 s** |
+| ABSE-Range | 3.4 s | 34.3 s | *(excluded above 10k)* |
+| VC-KASE | 0.7 s | 6.7 s | 67.0 s |
+| BVCRSA | 0.2 s | 1.7 s | 16.5 s |
+| Latt-IBEKS | 0.00 s | 0.00 s | 0.3 s |
+
+Trinity alone is 17.5 h of Exp 03, and 7.1 h of the single N=100,000 point
+in sweep 2b — 19 minutes per query. Cause is the Hilbert fragmentation
+documented in `MD/SKILL.md` §11 F3: the query box shatters into ~11,400
+intervals and the trapdoor carries ~18,600 tokens.
+
+**Two config changes cut the run from 24 h to 8 h** (not yet applied in
+code — decide before launching):
+
+1. **Exclude Trinity from Exp 03**, as ABSE-Range already is. Throughput
+   on a scheme whose per-query cost is dominated by query-box
+   fragmentation measures the fragmentation, not the throughput.
+2. **Cap Trinity at N ≤ 10,000 in sweep 2b**, the same treatment
+   `ABSE_RANGE_LIMIT` already gives ABSE-Range.
+
+Start 02 and 03 overnight in tmux.
 
 ---
 
@@ -224,13 +257,38 @@ they can be split across instances with no coordination.
 
 ### Suggested split
 
-| Worker | Experiments | Why |
+| Worker | Experiments | Est. |
 |---|---|---|
-| **W1** | 02 Query Processing | Longest single job — index builds to N=100k |
-| **W2** | 06 Aggregation Strategy, 03 Throughput | Second longest — real threshold decryptions |
-| **W3** | 01, 04, 05, 07, 08 | All the short ones together |
+| **W1** | 02 Query Processing | 19.8 h — or **8.0 h** with the Trinity cap |
+| **W2** | 03 Throughput | 23.9 h — or **6.5 h** without Trinity |
+| **W3** | 01, 04, 05, 06 (+zoom, plot), 07, 08 | 1.3 h |
 
-Expected wall-clock: roughly the length of W1 instead of the sum of everything.
+03 now needs its own worker: it is the longest single job, and pairing it
+with anything else (as the 2026-08-16 split did) makes that worker the
+critical path.
+
+### ⚠️ More instances will NOT make this faster
+
+Wall-clock equals the **longest indivisible job**, and rule 2 below makes
+one experiment indivisible. Exp 03 is 23.9 h on its own, so:
+
+| Fleet | Wall clock |
+|---|---|
+| 3 workers | 24.0 h |
+| 9 workers, one per experiment | **24.1 h** |
+| 9 workers **+ the two Trinity changes** | **8.0 h** |
+
+Going 3 → 9 instances buys about six minutes. The two config changes buy
+3×, and cost the same either way: at ~$0.53/h for `r7i.2xlarge`,
+3 × 24 h and 9 × 8 h are both ≈ $38. You are buying wall clock, not
+compute — so **shrink the jobs before you add machines**, and stop at
+**6 workers** (02, 03, and four sharing the rest); a 7th would idle.
+
+Splitting a *sweep* across workers — one N-point per machine — would reach
+~3.6 h, but don't. Exp 02's claim **is** the shape of the curve, and
+putting N=1,000 and N=100,000 on different machines injects inter-machine
+variance straight into it. That is the R1-C5 / R3-15 objection, self-inflicted.
+See rule 2.
 
 ### ⚠️ Three rules that keep the results publishable
 
@@ -326,10 +384,13 @@ distinct name.
 
 ### Cost
 
-Three `c7i.2xlarge` ≈ **$1.08/hour** combined. You finish in roughly a third of
-the time, so the total bill is about the same — you are buying wall-clock, not
-compute. **Stop each worker the moment its jobs finish**; do not leave two idle
-while the third grinds through Exp 2.
+Three `r7i.2xlarge` ≈ **$1.59/hour** combined; six ≈ **$3.18/hour**. The bill
+lands near **$38 either way** — 3 × 24 h and 6 × 8 h cost the same, because
+you are buying wall-clock, not compute.
+
+**Stop each worker the moment its jobs finish.** Under the split above W3
+finishes in ~1.3 h while W1/W2 run for 8–24 h; leaving it up wastes more
+than the Trinity config changes save.
 
 ---
 
