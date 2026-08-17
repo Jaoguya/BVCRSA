@@ -3,3 +3,30 @@ python=Python 3.12.3
 ---------------------------------------------------------------
 10_Primitive_Microbench__experiment        OK         3s
 04_Verification_Overhead__experiment       OK       160s
+05_Homomorphic_Aggregation__experiment     OK       825s
+06_Aggregation_Strategy__experiment        OK       463s
+06_Aggregation_Strategy__experiment_zoom   OK        99s
+06_Aggregation_Strategy__plot              FAIL       1s
+      |   File "/home/ubuntu/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3648, in get_loc
+      |     raise KeyError(key) from err
+      | KeyError: 'normal_calls'
+07_Aggregate_Recovery_BSGS__experiment     OK         3s
+08_Communication_Cost__experiment          OK         1s
+---------------------------------------------------------------
+elapsed=25 min  finished=2026-08-16 18:52:11 UTC
+CSV:
+  CSV/exp04_verification_overhead.csv
+  CSV/exp05_homomorphic_aggregation.csv
+  CSV/exp06_agg_strategy.csv
+  CSV/exp06_agg_strategy_summary.csv
+  CSV/exp06_agg_strategy_zoom.csv
+  CSV/exp07_bsgs_scalability.csv
+  CSV/exp08_communication_cost.csv
+  CSV/exp10_primitive_microbench.csv
+FIGURES:
+  Figures/exp04_verification_overhead.svg
+  Figures/exp05_homomorphic_aggregation.svg
+  Figures/exp07_bsgs_scalability.svg
+  Figures/exp08_communication_cost.svg
+  Figures/exp10_primitive_microbench.svg
+WORKER_W3_COMPLETE

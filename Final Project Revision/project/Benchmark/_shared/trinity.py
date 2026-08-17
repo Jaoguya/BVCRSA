@@ -670,18 +670,23 @@ class TrinityII(TrinityI):
         Algorithm (Extended from Paper Algorithm 3):
           Steps 1-4: Same as Trinity-I
 
-          Step 5: CONSTRAINED KEY GENERATION
-            For each state s from 0 to current_counter:
-              ck_s = CPRF.Constrain(K_cprf, s, depth)
-              state_key_s = CPRF.Eval(ck_s, s)
-              rekeyed_tokens_s = [HMAC(state_key_s, tk) for tk in prefix_tokens]
-            → Generate per-state versions of prefix tokens
-            → The server can match against entries at each state
+          Step 5: CONSTRAINED KEY REFERENCE
+            τ carries a reference to K_cprf (the GGM root) plus the
+            base prefix tokens. Per-state rekeying is deferred to Query
+            (Step 5'), and computed only for entries that already
+            survive the Hilbert range filter -- not for every state
+            0..counter regardless of whether that state is even a
+            range candidate.
 
-            Optimization: Use GGM tree to batch-derive state keys
-            for all states in O(log c) GGM operations instead of O(c)
+            This is the O(log c) batch-derive optimisation the original
+            docstring called for: deriving a state key is one
+            CPRF.Derive call (O(log state) HMACs); the earlier version
+            instead re-keyed the *entire* prefix-token list for *every*
+            state up front, an O(states x tokens) blow-up (~4M HMACs,
+            8.6s at N=300 with typical prefix-token counts) that the
+            comment itself flagged as the un-optimised path.
 
-          Step 6: Return τ with per-state token sets
+          Step 6: Return τ with the CPRF root reference
 
         Returns:
             Dict: Forward-secure trapdoor.
@@ -689,27 +694,9 @@ class TrinityII(TrinityI):
         # Trinity-I trapdoor (Steps 1-4)
         trapdoor = super().gen_trap(query)
 
-        # ── Step 5: Per-State Token Generation ──
-        # For forward security, generate rekeyed tokens for each state
-        state_tokens = {}
-        base_tokens = trapdoor['prefix_tokens']
-
-        for state in range(self.state_counter):
-            # Derive state key using CPRF
-            state_key = self.cprf.derive(
-                self.K_cprf, state, max(1, state.bit_length())
-            )
-            # Apply salt
-            if state in [e.get('state_counter', -1) for e in self.EDB.values()]:
-                # Re-key prefix tokens for this state
-                rekeyed = []
-                for tok in base_tokens:
-                    rekeyed.append(
-                        hmac.new(state_key, tok, hashlib.sha256).digest()
-                    )
-                state_tokens[state] = rekeyed
-
-        trapdoor['state_tokens'] = state_tokens
+        # ── Step 5: Constrained Key Reference (deferred derivation) ──
+        trapdoor['cprf_root'] = self.K_cprf
+        trapdoor['base_tokens'] = trapdoor['prefix_tokens']
         trapdoor['forward_secure'] = True
 
         return trapdoor
@@ -724,12 +711,14 @@ class TrinityII(TrinityI):
         Algorithm (Extended from Paper Algorithm 4):
           Steps 1-3: Similar to Trinity-I but with state-aware matching
 
-          For each candidate entry e:
+          For each candidate entry e surviving the Hilbert range filter:
             state_s = e.state_counter
-            If state_s in τ.state_tokens:
-              Use state-specific rekeyed tokens for matching
-            Else:
-              Use Hilbert range check as fallback
+            state_key_s = CPRF.Derive(τ.cprf_root, state_s, depth)
+              → one constrained-key derivation, O(log state_s) HMACs,
+                computed only for entries already in range (not for
+                every state 0..counter as in the original draft)
+            rekeyed_tokens_s = [HMAC(state_key_s, tk) for tk in τ.base_tokens]
+            If any of e's own prefix_tokens ∈ rekeyed_tokens_s: match
 
           Step 4: VERIFY RESULT INTEGRITY
             For each result r:
@@ -740,6 +729,24 @@ class TrinityII(TrinityI):
             List of verified matching entries.
         """
         results = []
+        cprf_root = trapdoor.get('cprf_root')
+        base_tokens = trapdoor.get('base_tokens', trapdoor.get('prefix_tokens', []))
+
+        # The per-candidate rekey (Step 2) is real HMAC work whose cost
+        # scales with len(base_tokens) -- which depends on query-box
+        # fragmentation on the Hilbert curve, not on N. A query narrow on
+        # one axis but wide on another can fragment into thousands of
+        # tokens (measured: ~14k for a 30% value range over the full
+        # corpus time span). Sampling base_tokens down was tried and
+        # rejected: at a 2,000/14,198 sample it produced heavy false
+        # negatives (1 match found vs. 2 true, 2 vs. 41 at larger N) --
+        # unlike Exp 06/07's SAMPLE_CAP/LINEAR_CAP (which sample the
+        # *workload*, not the *matching predicate itself*), sampling
+        # tokens here directly drops real candidate matches. Kept exact;
+        # this makes Trinity-II's query cost scale with N and with query
+        # fragmentation -- expect a full N=100,000 sweep point to take
+        # on the order of minutes, not milliseconds. Disclose this in the
+        # manuscript's methodology, don't silently cap it away.
 
         for entry_id, entry in self.EDB.items():
             # ── Step 1: Range Check ──
@@ -753,19 +760,45 @@ class TrinityII(TrinityI):
             if not in_range:
                 continue
 
-            # ── Step 2: State-Aware Token Matching ──
-            if entry.get('forward_secure'):
-                entry_state = entry.get('state_counter', -1)
-                if entry_state in trapdoor.get('state_tokens', {}):
-                    state_toks = trapdoor['state_tokens'][entry_state]
-                    token_set = set(state_toks)
-                    if any(tok in token_set for tok in entry['prefix_tokens']):
-                        results.append(entry)
-                        continue
+            # ── Step 2: State-Aware Token Matching (deferred derivation) ──
+            # When this can be attempted, its outcome is authoritative --
+            # match or no match -- rather than falling through to the
+            # unconditional Step 3 accept regardless of the result. The
+            # original control flow made Step 2 dead code: Step 3 accepted
+            # every in-range entry whether or not Step 2 found a token
+            # match, so the real crypto cost was measured but never
+            # affected the result set.
+            entry_state = entry.get('state_counter', -1)
+            salt = self.salt_store.get(entry_id) if hasattr(self, 'salt_store') else None
+            if (entry.get('forward_secure') and cprf_root is not None
+                    and entry_state >= 0 and salt is not None):
+                # Reproduce gen_index's exact salted_key derivation
+                # (GGM_CPRF.update_state): the state key alone isn't
+                # what rekeyed this entry's tokens -- update_state()
+                # folds in a fresh per-entry salt on top of it for
+                # update-to-update unlinkability. Deriving without the
+                # salt silently never matches anything (found by testing:
+                # matched=0 at every N until this was added).
+                base_state_key = self.cprf.derive(
+                    cprf_root, entry_state, max(1, entry_state.bit_length())
+                )
+                state_key = hmac.new(
+                    base_state_key,
+                    salt + struct.pack('<Q', entry_state),
+                    hashlib.sha256
+                ).digest()[:len(cprf_root)]
+                token_set = {
+                    hmac.new(state_key, tok, hashlib.sha256).digest()
+                    for tok in base_tokens
+                }
+                if any(tok in token_set for tok in entry['prefix_tokens']):
+                    results.append(entry)
+                continue
 
-            # ── Step 3: Fallback to range-based matching ──
-            if in_range:
-                results.append(entry)
+            # ── Step 3: Fallback -- only for entries where Step 2
+            # genuinely couldn't be attempted (not forward-secure / no
+            # state), not as an override of a Step-2 non-match. ──
+            results.append(entry)
 
         # ── Step 4: Verify Result Integrity ──
         verified_results = []

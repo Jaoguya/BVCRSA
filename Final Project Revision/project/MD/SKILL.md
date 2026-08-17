@@ -477,6 +477,15 @@ regenerates `CSV/Datarecord.csv` **byte for byte**
 | C2 | `UnicodeEncodeError` killed scripts whenever stdout was a pipe | `PYTHONIOENCODING=utf-8` + `C.UTF-8` in `run_all.sh` / `run_worker.sh` |
 | C3 | `AWS/serverpath` was placeholders | live instances configured |
 | E3′ | Exp 05's verifiable arm computed `recomputed` and never compared it | asserted against the returned aggregate |
+| D1 | **Trinity-II `gen_trap` was O(states × prefix_tokens)** — rekeyed the *entire* query token set for *every* indexed state up front; the docstring itself called for O(log c), the code did neither that nor anything close (8.6s at N=300) | state-key derivation deferred to Query, computed only for entries already surviving the Hilbert range filter |
+| D2 | **Trinity-II's Step 2 (real state-token match) was dead code** — Step 3 unconditionally accepted every in-range entry whether or not Step 2 found a match, so the real crypto cost was measured but never affected the result set | Step 2 made authoritative when it can be attempted; Step 3 now only fires when Step 2 genuinely can't run |
+| D3 | **Trinity-II query matched nothing (0 results)** — `query()`'s state-key derivation didn't reproduce `gen_index`'s `update_state()`, which folds in a fresh per-entry salt on top of the derived key | salt looked up from `salt_store` and folded in identically at query time; verified exact match against ground truth |
+| D4 | `hilbert_curve.py`'s `range_to_intervals` brute-force enumerates every grid cell in the query box — a box narrow on one axis but full-width on another (e.g. unconstrained time) enumerated ~640k cells | capped at 2M cells with a correctness-preserving (not selectivity-preserving) full-range fallback for pathological boxes |
+| D5 | **ABSE-Range had no range mechanism at all** — `rec["value"]` was passed as the *file payload* positional arg, not encrypted as a searchable field; trap_gen's `a,b` never reached the crypto; `search()` computed keyword pairings but never checked them | canonical dyadic range-cover (real BLS12-381 pairings, O(log domain) tokens); keyword and range matching both use a proven PEKS-style equality test; verified exact match against ground truth over multiple ranges |
+| D6 | **VC-KASE's "pairing" was `pow(g1*g2, 3, p)`** — a single modular exponentiation, not a bilinear pairing — and Exp 04 separately reimplemented a *second*, disconnected fake: 2 real pairings on fixed dummy points unrelated to any document or signature | one real BLS12-381 implementation (`vckase.py`) with real Extract/Sign/Verify, imported by both `baselines.py` and Exp 04 |
+| D7 | **VC-KASE `n_docs=20000` hard cap** — `_get_g(n_docs+1-j)` went negative for any record past the 20,000th, throwing `base is not invertible for the given modulus` and silently dropping VC-KASE out of Exp 02's N-sweep above 20k (found this session, live on AWS) | `Extract(doc_ids)` now takes the real target set explicitly; verified correct up to N=25,000 |
+| D8 | **Latt-IBEKS had no identity layer, no trapdoor sampling, no relationship to any of the paper's three schemes** — two independent random public matrices, generic two-ciphertext LWE encryption unrelated to Scheme-I/II/III | real MP12 gadget-trapdoor (`A@samplepre(u)==u mod q`, verified exact every trial) + GPV08 IBE-to-PEKS keyword/range matching (`latt_ibeks.py`) |
+| D9 | **Single-bit dual-Regev LWE decode has an inherent ~50% error rate at REPS=1** — not a bug, a property of 1-bit LSB embedding at this noise level; found by testing (112/400 failures) before being understood | REPS=8 independent repetitions, match requires all to decode within threshold; verified 200/200 true positives, 0/200 false positives |
 
 ### Open — protocol decisions, not code bugs
 
@@ -490,12 +499,50 @@ regenerates `CSV/Datarecord.csv` **byte for byte**
 
 ### Reporting caveats to disclose
 
-- **Baseline match decisions use ground truth** for VC-KASE, Latt-IBEKS,
-  Trinity and ABSE-Range. Timing is real; the returned set is not derived
-  cryptographically. Favourable to the baselines. **R3-16** — text in
-  `ImplementFIX/03` §F11.
-- **Latt-IBEKS parameters are toy-sized** (`n=17, q=4093` vs deployment
-  `n≈512–1024`), understating its cost by ~1000×.
-- **ABSE-Range applies no range predicate** — attribute/keyword matching only.
+- **Baseline match decisions used ground truth** for VC-KASE, Latt-IBEKS,
+  Trinity and ABSE-Range — **now fixed for all four** (2026-08-17, see
+  `ImplementFIX/09`/`10`): every baseline derives its match set from real
+  cryptography (Trinity-II state-aware token matching + verify_tag;
+  VC-KASE real Extract/Test/Sign/Verify over BLS12-381; ABSE-Range real
+  keyword + canonical-range-cover pairing match; Latt-IBEKS real MP12
+  gadget-trapdoor sampling + real LWE keyword/range matching), each
+  verified against ground truth over repeated test cases with zero
+  mismatches. R3-16 — text in `ImplementFIX/03` §F11 needs rewriting:
+  the whole premise of that disclosure paragraph (baselines are
+  favourably ground-truth) no longer holds and the paragraph needs to
+  say what's real now instead.
+- **Latt-IBEKS's trapdoor sampling and identity binding are documented
+  substitutions, not the paper's exact cited algorithms** — a real
+  Micciancio-Peikert gadget trapdoor stands in for the paper's cited
+  GPV-style TrapGen/SamplePre/SampleLeft/NewBasisDel, and a GPV08-style
+  IBE-to-PEKS transform stands in for the paper's `A_id = A(R_id)^-1`
+  HIBE-style identity binding. Both are real, peer-reviewed, correct
+  lattice constructions — chosen over attempting the paper's exact,
+  more complex cited algorithms from scratch under time pressure, where
+  a subtle bug would be harder to catch than in the pairing-based
+  baselines. See `latt_ibeks.py`'s module docstring for the full
+  justification and the verification results.
+- **Latt-IBEKS parameters (`n=17, q=4093`) match ref28's own Section VI-B
+  experimental setup verbatim** — not a toy shortcut. (Corrected
+  2026-08-17; the prior note claiming a ~1000× understatement against an
+  assumed "deployment n≈512–1024" was unsupported by the source paper.)
+- **ABSE-Range (ABSE-ERM, ref27) now applies a real numeric range
+  predicate** (2026-08-17) via a canonical dyadic range-cover, not the
+  paper's exact 0/1-coding construction (that needs a set-*absence* test
+  that doesn't map cleanly onto a pairing match; see `Attribute-based.py`'s
+  module docstring). Still missing: the paper's LSSS `(t,n)`-threshold
+  access matrix — attribute-policy matching is still a flat list, not a
+  threshold structure (`ImplementFIX/10` Phase 3.1, not yet built).
+- **Trinity now benchmarks Trinity-II** (forward-secure + verified), not
+  Trinity-I — swapped 2026-08-17. Its query cost is real and scales with
+  both N and query-box Hilbert fragmentation; expect large-N sweep points
+  to take minutes, not milliseconds — this needs disclosing in the
+  manuscript's methodology, not silently absorbed into a runtime budget.
+- **VC-KASE is excluded from Exp 02's range-selectivity sweeps (2a
+  vs_range, 2b vs_N) and from Exp 03's throughput sweep**, and from
+  Exp 03. The source paper (ref16) has no numeric range predicate at
+  all — kept only in Exp 01 (trapdoor-gen timing) and Exp 02's 2c
+  (conjunctive keyword-identity matching, which is what it actually
+  supports).
 - **Exp 06 extrapolates** the conventional arm above `|S_Q| = 150`.
 - **Exp 03 excludes ABSE-Range** (~64 s/query at N=10,000).

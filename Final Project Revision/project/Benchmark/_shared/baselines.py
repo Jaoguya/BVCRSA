@@ -74,8 +74,10 @@ from user_client import UserClient
 from sensor import compute_canonical_path
 from utils import gen_tag
 from ec_elgamal import generate_ec_elgamal_keypair
-from trinity import TrinityI
+from trinity import TrinityI, TrinityII
 from merkle_tree import MerkleTree
+from vckase import VCKASE
+from latt_ibeks import LattIBEKS
 
 try:
     from abse_fast import ABSE
@@ -374,212 +376,110 @@ class BVCRSAAlgo:
 # ══════════════════════════════════════════════════════════════
 #  VC-KASE (ref16)
 # ══════════════════════════════════════════════════════════════
-class SimulatedPairingGroup:
-    def __init__(self, p=2 ** 256 - 2 ** 32 - 977):
-        self.p = p
-        self.g = 2
-
-    def exp_G(self, base, exp):
-        return pow(base, exp, self.p)
-
-    def pair(self, g1, g2):
-        return pow(g1 * g2, 3, self.p)
-
-
 class VCKASEAlgo:
+    """VC-KASE (ref16) via vckase.py -- real BLS12-381 pairings, real
+    Extract/Sign/Verify. See vckase.py's module docstring for the
+    Type-1->Type-3 adaptation and the correctness proofs for the
+    per-field keyword test and aggregate-signature verify.
+
+    Replaces the previous SimulatedPairingGroup ("pairing" = a single
+    pow(g1*g2, 3, p) modular exponentiation, not a bilinear pairing at
+    all) and fixes the n_docs=20000 hard cap that silently dropped
+    VC-KASE out of Exp 02's N-sweep above 20,000 records -- the cap
+    conflated "every loaded record" with the aggregate key's target set
+    S, which Extract() now takes as an explicit argument instead.
+
+    No numeric range predicate: ref16 is exact conjunctive keyword-FIELD
+    search, confirmed against the source paper (ImplementFIX/09). `a, b`
+    in trap_gen are accepted only for interface parity with the other
+    baselines and never reach the crypto -- callers that need range
+    selectivity should not include VC-KASE in those sweeps (see
+    Benchmark/02_Query_Processing's SKIP_RANGE_SCHEMES).
+    """
     name = "VC-KASE"
 
     def setup(self, kw_count=2):
-        self.group = SimulatedPairingGroup()
-        self.n_docs = 20000
-        self.alpha = random.randint(1, self.group.p - 1)
-        self.g_list = {}
-        self.beta = random.randint(1, self.group.p - 1)
-        self.lam = random.randint(1, self.group.p - 1)
-        self.pk_o = self.group.exp_G(self.group.g, self.beta)
-        self.gamma = random.randint(1, self.group.p - 1)
-        self.pk_s = self.group.exp_G(self.group.g, self.gamma)
-
-    def _get_g(self, i):
-        if i not in self.g_list:
-            self.g_list[i] = self.group.exp_G(
-                self.group.g, pow(self.alpha, i, self.group.p - 1))
-        return self.g_list[i]
-
-    def hash_H(self, string_val):
-        return int(hashlib.sha256(str(string_val).encode()).hexdigest(), 16) % self.group.p
+        self.scheme = VCKASE()
+        self.scheme.setup()
 
     def index_build(self, records):
-        self.index = []
-        for rec in records:
-            r = random.randint(1, self.group.p - 1)
-            self.index.append({
-                "id": rec["id"] + 1,
-                "c1": self.group.exp_G(self.group.g, r),
-                "c2": self.group.exp_G(self.group.g, (self.lam * r) % (self.group.p - 1)),
-                "sensor": rec["sensor"], "value": rec["value"],
-            })
-        self.K1_S = 1
-        for j in [r["id"] + 1 for r in records]:
-            self.K1_S = (self.K1_S *
-                         self.group.exp_G(self._get_g(self.n_docs + 1 - j), self.beta)) % self.group.p
-        return len(records)
+        n = self.scheme.index_build(records)
+        # This benchmark has no per-user document-subset concept, so the
+        # aggregate key authorizes the whole indexed corpus -- but the
+        # real Extract() product (Section V, "Extract") is still computed
+        # in full, over every document id, not skipped.
+        all_ids = [rec["id"] + 1 for rec in records]
+        self.k_agg = self.scheme.extract(all_ids)
+        return n
 
     def trap_gen(self, keyword, a, b):
-        x = random.randint(1, self.group.p - 1)
-        y = random.randint(1, self.group.p - 1)
-        sum_hw = sum(self.hash_H(w) for w in [keyword, str(a), str(b)]) % (self.group.p - 1)
-        T1 = (self.K1_S
-              * self.group.exp_G(self.pk_o, (sum_hw * x) % (self.group.p - 1))
-              * self.group.exp_G(self.group.g, y)) % self.group.p
-        return {"T1": T1, "T2": self.group.exp_G(self.group.g, x),
-                "keyword": keyword, "a": a, "b": b}
-
-    def _pairing_test(self, ct, td):
-        """The real per-document search operation.
-
-        VC-KASE's server evaluates a pairing equation per ciphertext to test
-        whether the aggregate trapdoor matches. This performs that work so
-        the timing is honest. See PARITY NOTE at the top of this module for
-        why the MATCH DECISION is taken from ground truth.
-        """
-        e1 = self.group.pair(td["T1"], ct["c1"])
-        e2 = self.group.pair(td["T2"], ct["c2"])
-        return (e1 * e2) % self.group.p
+        return self.scheme.trap_gen([keyword], self.k_agg)
 
     def query(self, td):
-        matched = 0
-        for ct in self.index:
-            self._pairing_test(ct, td)          # real cryptographic work
-            if ct["sensor"] == td["keyword"] and td["a"] <= ct["value"] <= td["b"]:
-                matched += 1
-        return matched
+        return sum(1 for ct in self.scheme.index if self.scheme.test(td, ct))
 
     def conjunctive_trap(self, dims_spec):
-        q_kw = []
-        for s in dims_spec:
-            q_kw.extend([s["k"], str(s["a"]), str(s["b"])])
-        x = random.randint(1, self.group.p - 1)
-        y = random.randint(1, self.group.p - 1)
-        sum_hw = sum(self.hash_H(w) for w in q_kw) % (self.group.p - 1)
-        T1 = (self.K1_S
-              * self.group.exp_G(self.pk_o, (sum_hw * x) % (self.group.p - 1))
-              * self.group.exp_G(self.group.g, y)) % self.group.p
-        return {"T1": T1, "T2": self.group.exp_G(self.group.g, x), "dims_spec": dims_spec}
+        return self.scheme.trap_gen([s["k"] for s in dims_spec], self.k_agg)
 
     def conjunctive_query(self, td):
-        matched = 0
-        for ct in self.index:
-            self._pairing_test(ct, td)          # real cryptographic work
-            if all(ct["sensor"] == spec["k"] and spec["a"] <= ct["value"] <= spec["b"]
-                   for spec in td["dims_spec"]):
-                matched += 1
-        return matched
+        return sum(1 for ct in self.scheme.index if self.scheme.test(td, ct))
 
 
 # ══════════════════════════════════════════════════════════════
-#  Latt-IBEKS (ref28) -- incl. Scheme-II conjunctive patch
+#  Latt-IBEKS (ref28) via latt_ibeks.py -- real MP12 gadget-trapdoor
+#  sampling + real LWE keyword/range matching. See that module's
+#  docstring for the two documented substitutions (gadget trapdoor
+#  instead of GPV basis delegation; GPV08 IBE-to-PEKS instead of the
+#  paper's A_id = A(R_id)^-1 HIBE-style binding) and the correctness
+#  proofs/test results behind each.
 # ══════════════════════════════════════════════════════════════
 class LatticeIBEKSAlgo:
     name = "Latt-IBEKS"
 
     def setup(self, kw_count=2):
-        self.n_dim = 17
-        self.q = 4093
-        self.N_kw = 5
-        self.m = int(6 * self.n_dim * 1.5)
-        self.A = np.random.randint(0, self.q, (self.n_dim, self.m))
-        self.B = np.random.randint(0, self.q, (self.n_dim, self.m))
-
-    def hash_H2(self, keyword):
-        return int(hashlib.sha256(str(keyword).encode()).hexdigest(), 16) % self.q
+        self.scheme = LattIBEKS()
+        self.scheme.setup()
 
     def index_build(self, records):
-        """Real LWE ciphertext construction per record.
-
-        The previous version built the public matrices A and B in setup() and
-        then never used them: index construction was one SHA-256 plus six
-        small modular exponentiations, which is why it reported 0.00 s for
-        300 records. No lattice operation was performed anywhere, so the
-        "post-quantum" baseline cost was not being measured at all.
-
-        Latt-IBEKS index construction is LWE encryption under the public
-        matrices:
-            s <- Z_q^n              secret vector
-            e, e' <- chi            small noise
-            c_0 = A^T s + e
-            c_1 = B^T s + e' + encode(w)
-        Each ciphertext is therefore two matrix-vector products of dimension
-        n_dim x m over Z_q. That is the dominant cost of the real scheme and
-        it is what this now performs.
-        """
-        self.index = []
-        At, Bt = self.A.T, self.B.T          # (m x n_dim), hoisted
-        for rec in records:
-            x_w = self.hash_H2(rec["sensor"])
-
-            # Keyword encoding vector (used by the trapdoor inner product)
-            y_0 = np.array([(x_w ** i) % self.q for i in range(self.N_kw + 1)])
-            y = np.zeros(self.n_dim, dtype=int)
-            y[:len(y_0)] = y_0
-
-            # LWE ciphertext -- the real lattice work
-            s = np.random.randint(0, self.q, self.n_dim)
-            e0 = np.random.randint(-2, 3, self.m)
-            e1 = np.random.randint(-2, 3, self.m)
-            c0 = (At.dot(s) + e0) % self.q
-            c1 = (Bt.dot(s) + e1 + x_w) % self.q
-
-            self.index.append({
-                "y": y, "c0": c0, "c1": c1,
-                "sensor": rec["sensor"], "value": rec["value"],
-            })
+        self.index = [{
+            "kw_ct": self.scheme.encrypt_keyword(rec["sensor"]),
+            "val_ct": self.scheme.encrypt_value(rec["value"]),
+            "sensor": rec["sensor"], "value": rec["value"],
+        } for rec in records]
         return len(records)
 
-    def _poly_vec(self, roots):
-        while len(roots) < self.N_kw:
-            roots.append(np.random.randint(0, self.q))
-        coeffs = np.poly(roots)
-        b_0 = np.array([int(round(c)) % self.q for c in coeffs[::-1]])
-        b_vec = np.zeros(self.n_dim, dtype=int)
-        b_vec[:len(b_0)] = b_0
-        return b_vec
-
     def trap_gen(self, keyword, a, b):
-        b_vec = self._poly_vec([self.hash_H2(w) for w in [keyword, str(a), str(b)]])
-        # NOTE: the range bounds are "lo"/"hi", not "a"/"b". Using "b" here
-        # collided with the trapdoor polynomial vector, so the dict literal
-        # silently overwrote b_vec with the integer upper bound and query()
-        # then computed an elementwise multiply instead of the Scheme-I
-        # inner product.
-        return {"b": b_vec, "keyword": keyword, "lo": a, "hi": b}
+        return {
+            "kw_td": self.scheme.trapdoor_keyword(keyword),
+            "range_td": self.scheme.trapdoor_range(a, b),
+        }
 
     def query(self, td):
         matched = 0
         for ct in self.index:
-            # Real lattice work: the search test is an inner product of the
-            # trapdoor vector against the keyword encoding, plus the LWE
-            # ciphertext combination the server must evaluate per document.
-            np.dot(td["b"], ct["y"]) % self.q
-            (ct["c1"] - ct["c0"]) % self.q
-            if ct["sensor"] == td["keyword"] and td["lo"] <= ct["value"] <= td["hi"]:
+            if (self.scheme.test_target(td["kw_td"], ct["kw_ct"])
+                    and self.scheme.test_range(td["range_td"], ct["val_ct"])):
                 matched += 1
         return matched
 
     def conjunctive_trap(self, dims_spec):
-        """Lin et al. Scheme-II: trapdoor polynomial roots are the query
-        keywords; remaining capacity is padded with noise to hide d."""
-        b_vec = self._poly_vec([self.hash_H2(str(s["k"])) for s in dims_spec])
-        e_0 = np.random.randint(0, 2, self.m)
-        return {"b": b_vec, "e_0": e_0, "dims_spec": dims_spec}
+        return {
+            "kw_tds": [self.scheme.trapdoor_keyword(s["k"]) for s in dims_spec],
+            "range_tds": [self.scheme.trapdoor_range(s["a"], s["b"]) for s in dims_spec],
+        }
 
     def conjunctive_query(self, td):
         matched = 0
         for ct in self.index:
-            # Scheme-II inner product evaluates to 0 only if all roots hold.
-            _ = np.dot(td["b"], ct["y"]) % self.q
-            if all(ct["sensor"] == spec["k"] and spec["a"] <= ct["value"] <= spec["b"]
-                   for spec in td["dims_spec"]):
+            # Real AND: every queried dimension's keyword AND range must
+            # match this record's own single keyword/value ciphertexts.
+            # (The dataset has one sensor field per record -- matching
+            # multiple different dimension keywords against it is
+            # correctly always False for d>1, same semantics the
+            # ground-truth version had.)
+            if all(self.scheme.test_target(kw_td, ct["kw_ct"])
+                   and self.scheme.test_range(range_td, ct["val_ct"])
+                   for kw_td, range_td in zip(td["kw_tds"], td["range_tds"])):
                 matched += 1
         return matched
 
@@ -596,7 +496,10 @@ class TrinityAlgo:
     DOMAIN_MAX = 100.0
 
     def setup(self, kw_count=2):
-        self.scheme = TrinityI()
+        # Trinity-II (forward-secure, verified) -- the paper's actual
+        # contribution, not the Trinity-I stepping stone. See
+        # ImplementFIX/10 Phase 2 / Decision A.
+        self.scheme = TrinityII()
         self.scheme.setup(256, 8, 10)
 
     def _to_lat(self, value):
@@ -645,35 +548,35 @@ class TrinityAlgo:
             "lon_range": (99.9, 100.1),
             "time_range": (t_lo, t_hi), "keywords": [keyword],
         })
-        # SHVE predicate token -- Trinity's server-side match is SHVE.Match
-        # per candidate, not a plaintext Hilbert comparison.
-        try:
-            td["_shve_token"] = self.scheme.shve.token_gen(
-                self.scheme.K_shve, (13, 100, (t_lo + t_hi) // 2))
-        except Exception:
-            td["_shve_token"] = None
+        # gen_trap() already returns a real SHVE token under td['shve_token']
+        # (Trinity's own Phase-3 output) -- no need to mint a second one.
         return td
 
     def query(self, trapdoor):
-        """Hilbert range filter, then real SHVE.Match on each candidate."""
-        token = trapdoor.get("_shve_token")
-        matched = 0
-        for entry in self.entries:
-            in_range = any(lo <= entry["hilbert_index"] <= hi
-                           for lo, hi in trapdoor["intervals"])
-            if not in_range:
-                continue
-            ct = entry.get("CT_shve") or entry.get("shve_ct")
-            if token is not None and ct is not None:
-                try:
-                    self.scheme.shve.match(token, ct)   # real predicate work
-                except Exception:
-                    pass
-            matched += 1
-        return matched
+        """Delegates to the scheme's own Phase-4 query().
+
+        For TrinityII this is state-aware prefix-token matching plus the
+        result-integrity verify_tag check (Trinity-II Sec. V-B, forward
+        security + verification) -- not a re-implementation, so the
+        benchmark actually exercises the paper's real query path instead
+        of a hand-rolled range/SHVE loop with its own field-naming
+        assumptions.
+        """
+        return len(self.scheme.query(trapdoor))
 
 
 class ABSERangeAlgo:
+    """ABSE-ERM (ref27). See Attribute-based.py's module docstring for
+    the canonical-cover range mechanism that replaces the paper's 0/1
+    coding, and ImplementFIX/09/10 for why: the previous version never
+    passed a numeric value into encrypt() at all (rec["value"] was
+    passed positionally as the *file payload*, not a range-searchable
+    field), and trap_gen() smuggled the query bounds in as plain dict
+    keys that never reached the crypto. search()'s pairing outputs were
+    also computed but never checked -- match was ground truth
+    throughout. Both are now real: search() returns None on a genuine
+    keyword/range mismatch, computed from actual pairing equality.
+    """
     name = "ABSE-Range"
 
     def setup(self, kw_count=2):
@@ -681,43 +584,25 @@ class ABSERangeAlgo:
         self.sk = abse_range_mod.key_gen(self.msk, ["Analyst", "Temp", "Humidity"])
 
     def index_build(self, records):
-        self.cts = [abse_range_mod.encrypt(self.pk, ["Analyst"], rec["value"], [rec["sensor"]])
-                    for rec in records]
-        # Ground truth for the match decision, kept alongside the ciphertexts
-        # exactly as the other baselines do -- see the PARITY NOTE at the top
-        # of this module. The pairing work below is still performed per
-        # ciphertext, so the TIMING remains a real measurement.
-        self._truth = [(rec["sensor"], rec["value"]) for rec in records]
+        self.cts = [
+            abse_range_mod.encrypt(self.pk, ["Analyst"], rec["id"],
+                                    [rec["sensor"]], value=rec["value"])
+            for rec in records
+        ]
         return len(self.cts)
 
     def trap_gen(self, keyword, a, b):
-        td, _d = abse_range_mod.trap_gen(self.sk, [keyword])
-        td["_kw"], td["_a"], td["_b"] = keyword, a, b
+        td, _d = abse_range_mod.trap_gen(self.sk, [keyword], value_range=(a, b))
         return td
 
     def query(self, trapdoor):
-        """Real BLS12-381 pairings per ciphertext (Attribute-based.py search).
-
-        The previous version counted a document as matched whenever search()
-        merely failed to raise -- so it reported N matches for every query
-        regardless of the range. The result is now taken from search()'s
-        return value where it provides one.
-        """
-        # search() performs attribute/keyword matching with real BLS12-381
-        # pairings but does NOT apply the numeric range predicate -- it
-        # returns the recovered payload (e.g. {'file_f': 3}) for every
-        # policy-satisfying ciphertext. Left as-is it reported N matches for
-        # every query regardless of range. The pairing cost is representative;
-        # the match decision comes from ground truth, consistent with the
-        # other baselines. DISCLOSE THIS (R3-16).
-        kw, a, b = trapdoor.get("_kw"), trapdoor.get("_a"), trapdoor.get("_b")
+        """Real BLS12-381 pairings per ciphertext, real match decision:
+        search() returns None unless the keyword AND range trapdoors
+        both find a genuine pairing-equality match (Attribute-based.py
+        Steps B/C)."""
         matched = 0
-        for ct, (sensor, value) in zip(self.cts, self._truth):
-            try:
-                abse_range_mod.search(ct, trapdoor)        # real pairings
-            except Exception:
-                continue
-            if kw is None or (sensor == kw and a <= value <= b):
+        for ct in self.cts:
+            if abse_range_mod.search(ct, trapdoor) is not None:
                 matched += 1
         return matched
 

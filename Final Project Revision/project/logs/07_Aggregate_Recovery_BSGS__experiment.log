@@ -1,0 +1,37 @@
+======================================================================
+  Experiment 07 — Bsgs Scalability
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+
+  ── M_max = 1,000 ──
+    table: 32 entries, 1.1 KiB, built in 10.5 ms
+    BSGS   lookup mean=   1.7224 ms ±0.1520
+    Linear lookup mean=   2.4396 ms ±0.5710
+
+  ── M_max = 10,000 ──
+    table: 101 entries, 4.6 KiB, built in 4.4 ms
+    BSGS   lookup mean=   2.9612 ms ±0.4378
+    Linear lookup mean=  24.2805 ms ±6.7514 (extrapolated)
+
+  ── M_max = 100,000 ──
+    table: 317 entries, 9.1 KiB, built in 13.6 ms
+    BSGS   lookup mean=   7.4332 ms ±1.3136
+    Linear lookup mean= 252.8305 ms ±60.0601 (extrapolated)
+
+  ── M_max = 1,000,000 ──
+    table: 1,001 entries, 36.1 KiB, built in 44.8 ms
+    BSGS   lookup mean=  20.2622 ms ±4.4098
+    Linear lookup mean=2154.0636 ms ±566.2399 (extrapolated)
+
+  ── M_max = 10,000,000 ──
+    table: 3,163 entries, 144.1 KiB, built in 148.2 ms
+    BSGS   lookup mean=  55.9457 ms ±14.3454
+    Linear lookup mean=25902.8190 ms ±5995.8374 (extrapolated)
+
+  Fitted growth exponents (validates the complexity claim):
+    BSGS    exponent = 0.386   (theory: 0.5)
+    Linear  exponent = 1.000   (theory: 1.0)
+
+[+] 10 rows -> /home/ubuntu/bvcrsa/CSV/exp07_bsgs_scalability.csv
+[+] figure -> /home/ubuntu/bvcrsa/Figures/exp07_bsgs_scalability.svg

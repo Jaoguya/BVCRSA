@@ -2,3 +2,15 @@ worker=W1 host=ip-172-31-12-27 started=2026-08-16 18:26:08 UTC
 python=Python 3.12.3
 ---------------------------------------------------------------
 10_Primitive_Microbench__experiment        OK         2s
+02_Query_Processing__experiment            OK     14791s
+---------------------------------------------------------------
+elapsed=246 min  finished=2026-08-16 22:32:41 UTC
+CSV:
+  CSV/exp02_query_processing.csv
+  CSV/exp10_primitive_microbench.csv
+FIGURES:
+  Figures/exp02_query_vs_N.svg
+  Figures/exp02_query_vs_d.svg
+  Figures/exp02_query_vs_range.svg
+  Figures/exp10_primitive_microbench.svg
+WORKER_W1_COMPLETE

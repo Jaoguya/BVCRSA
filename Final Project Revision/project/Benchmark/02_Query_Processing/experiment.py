@@ -27,6 +27,18 @@ from baselines import (ALL_SCHEMES, CONJUNCTIVE_SCHEMES, KEYWORD_POOL,
                        load_datarecord, timed, SEED)
 from harness import Experiment, new_figure, save_figure, style
 
+# VC-KASE (ref16) has no numeric range predicate in the source paper --
+# confirmed against the paper text (ImplementFIX/09): it's exact
+# conjunctive keyword-FIELD search only. Plotting it against range % or
+# N under a fixed range is not meaningful -- its real cost and match
+# count don't depend on range width at all, since the range bounds never
+# reach the crypto (see VCKASEAlgo.trap_gen in baselines.py). Dropped
+# from the range-selectivity sweeps (2a, 2b); kept in 2c, which is
+# conjunctive keyword-*identity* matching -- the capability VC-KASE
+# actually has -- and in Exp 01's trapdoor-generation timing, which
+# doesn't depend on match correctness.
+SKIP_RANGE_SCHEMES = {"VC-KASE"}
+
 RANGE_PCTS = [10, 20, 30, 50, 80]
 N_VALUES = [1_000, 5_000, 10_000, 20_000, 50_000, 100_000]
 DIMENSIONS = [1, 2, 3, 4, 5]
@@ -62,6 +74,9 @@ def main():
     for SchemeCls in ALL_SCHEMES:
         scheme = SchemeCls()
         name = scheme.name
+        if name in SKIP_RANGE_SCHEMES:
+            print(f"  {name:12s} SKIPPED — no range predicate in the source scheme")
+            continue
         try:
             scheme.setup(kw_count=2)
             scheme.index_build(records)
@@ -94,6 +109,9 @@ def main():
             if name == "ABSE-Range" and N > ABSE_RANGE_LIMIT:
                 print(f"    {name:12s} SKIPPED — O(N) scan intractable above "
                       f"{ABSE_RANGE_LIMIT:,}")
+                continue
+            if name in SKIP_RANGE_SCHEMES:
+                print(f"    {name:12s} SKIPPED — no range predicate in the source scheme")
                 continue
             try:
                 scheme.setup(kw_count=2)

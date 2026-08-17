@@ -38,9 +38,11 @@ Verification algorithms (each matching their published design):
              client decrypts and checks it against the query
              predicate.  Complexity: O(r).
 
-  VC-KASE  — Fixed number of REAL BLS12-381 bilinear pairings
-             (result-count independent), matching its O(T_pair)
-             verification complexity.
+  VC-KASE  — Real Verify(pk_o, sigma, C): re-derive SUM(H1(i||cf_i))
+             over the returned result set (O(r) EC ops) and check one
+             pairing equality (paper Eq. 2). 2 pairings, fixed; the
+             O(r) term is EC point additions, not more pairings.
+             Complexity: O(2P + (d-1)*M_G) per paper Table III.
 
 Result-set sizes |R_Q| are controlled via deterministic evenly-
 spaced index selection over the committed leaf set.  This removes
@@ -275,22 +277,44 @@ def trinity_verify(r):
 # ══════════════════════════════════════════════════════════════════
 #  VC-KASE: Fixed BLS12-381 Bilinear Pairings
 # ══════════════════════════════════════════════════════════════════
-print("[setup] Initializing VC-KASE BLS12-381 pairing elements...")
-from py_arkworks_bls12381 import G1Point, G2Point, Scalar, GT
+print("[setup] Building VC-KASE verification data (N=%d)..." % N_TOTAL)
+from vckase import VCKASE
 
-_vckase_g1 = G1Point() * Scalar(random.randint(1, 2**64))
-_vckase_g2 = G2Point() * Scalar(random.randint(1, 2**64))
-VCKASE_PAIRINGS_PER_QUERY = 2  # Fixed, result-count-independent
+# Real KeyGen_o -- Verify() checks against pk_o's G2 form (see vckase.py's
+# module docstring for the aggregate-signature correctness proof). Replaces
+# the previous placeholder, which paired two unrelated fixed dummy points
+# and was disconnected from both baselines.py's VC-KASE definition and the
+# actual paper -- real pairings, but not a measurement of ref16's Verify.
+_vckase = VCKASE()
+_vckase.setup()
+
+# Real per-document signatures sigma_i = H1(i||cf_i)^beta (paper Encrypt,
+# the sigma_i output), precomputed once per document -- untimed, this is
+# server-side signing at ingest time, not part of verification.
+_vckase_cf = {i: os.urandom(8).hex() for i in range(N_TOTAL)}
+_vckase_sigma = {i: _vckase.sign(i, _vckase_cf[i]) for i in range(N_TOTAL)}
+
+# Pre-aggregate sigma = SUM(sigma_i) for each |R_Q| (untimed -- this is the
+# server's job per the paper's Test step, which returns sigma alongside C).
+_vckase_precomputed = {}
+for r in RESULT_COUNTS:
+    idxs = evenly_spaced_indices(r, N_TOTAL)
+    agg = _vckase.aggregate_signature([_vckase_sigma[i] for i in idxs])
+    _vckase_precomputed[r] = {"idxs": idxs, "sigma": agg}
 
 print("[setup] VC-KASE setup complete.")
 
 
 def vckase_verify(r):
-    """TIMED: Fixed number of bilinear-pairing tests regardless of
-    how many results matched.  Result-count-independent O(T_pair).
+    """TIMED: the client's real Verify(pk_o, sigma, C) -- one pairing
+    equality check per the paper's Eq. (2), after re-deriving
+    SUM(H1(i||cf_i)) over the returned result set. Cost genuinely scales
+    with |R_Q| through that sum (paper Table III: 2P + (d-1)*M_G) --
+    not literally constant, unlike the placeholder this replaces.
     """
-    for _ in range(VCKASE_PAIRINGS_PER_QUERY):
-        GT.pairing(_vckase_g1, _vckase_g2)
+    pre = _vckase_precomputed[r]
+    ok = _vckase.verify(pre["sigma"], pre["idxs"], _vckase_cf)
+    assert ok, "VC-KASE aggregate signature failed to verify"
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -328,7 +352,7 @@ def main():
                        statistic="median reported; mean/stdev/ci95 also given",
                        hash_ops=(r + int(r * math.log2(max(N_TOTAL / max(r, 1), 2))))
                                  if key == "bvcrsa" else "",
-                       pairing_ops=VCKASE_PAIRINGS_PER_QUERY if key == "vckase" else "")
+                       pairing_ops=2 if key == "vckase" else "")
         print(
             f"  |R_Q|={r:>4d}  "
             f"BVCRSA={results['bvcrsa']['median_ms']:>8.3f}ms  "
@@ -347,7 +371,8 @@ def main():
     print(f"    Index selection:     Deterministic evenly-spaced")
     print(f"    BVCRSA verification: MerkleTree.verify_multi_proof()")
     print(f"    Trinity verification: AES-GCM decrypt + content-check")
-    print(f"    VC-KASE verification: {VCKASE_PAIRINGS_PER_QUERY} BLS12-381 pairings (fixed)")
+    print(f"    VC-KASE verification: real Verify() -- 2 BLS12-381 pairings "
+          f"+ O(r) EC point additions (paper Table III: 2P + (d-1)*M_G)")
 
 
 def plot(rows):

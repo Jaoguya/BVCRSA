@@ -1,0 +1,32 @@
+  ⛓️  Blockchain Edge Node initialized (simulated mode)
+     Genesis: 00560fb1cb414fd0...
+  measured wire sizes (bytes):
+    token             338
+    block             191
+    agg_entry         807
+    ct_ahe            311
+    hash               66
+    header            200
+    record            661
+======================================================================
+  Experiment 08 — Communication Cost
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+  N=  1,000  r=   50  req=    4.55 KB  resp1=      3.14 KB  resp2=    54.00 KB  total=     61.68 KB
+  N=  1,000  r=  100  req=    4.94 KB  resp1=      3.14 KB  resp2=   100.88 KB  total=    108.95 KB
+  N=  1,000  r=  500  req=    8.06 KB  resp1=      3.14 KB  resp2=   426.94 KB  total=    438.14 KB
+  N=  1,000  r=1,000  req=   11.97 KB  resp1=      3.14 KB  resp2=   853.21 KB  total=    868.32 KB
+  N= 10,000  r=   50  req=    4.55 KB  resp1=      8.39 KB  resp2=    64.70 KB  total=     77.63 KB
+  N= 10,000  r=  100  req=    4.94 KB  resp1=      8.39 KB  resp2=   122.28 KB  total=    135.60 KB
+  N= 10,000  r=  500  req=    8.06 KB  resp1=      8.39 KB  resp2=   533.93 KB  total=    550.38 KB
+  N= 10,000  r=1,000  req=   11.97 KB  resp1=      8.39 KB  resp2=  1002.80 KB  total=   1023.16 KB
+  N=100,000  r=   50  req=    4.55 KB  resp1=     59.95 KB  resp2=    75.39 KB  total=    139.89 KB
+  N=100,000  r=  100  req=    4.94 KB  resp1=     59.95 KB  resp2=   143.67 KB  total=    208.56 KB
+  N=100,000  r=  500  req=    8.06 KB  resp1=     59.95 KB  resp2=   640.99 KB  total=    709.00 KB
+  N=100,000  r=1,000  req=   11.97 KB  resp1=     59.95 KB  resp2=  1216.92 KB  total=   1288.84 KB
+
+[+] 12 rows -> /home/ubuntu/bvcrsa/CSV/exp08_communication_cost.csv
+[+] figure -> /home/ubuntu/bvcrsa/Figures/exp08_communication_cost.svg
+
+  For Table V: replace the O(.) expressions with the total_kb column at N=10,000 and r=100/500 (R2-C5). Response 1 dominates because every matched canonical node ships all n_blk blocks -- state that plainly rather than hiding it in an asymptotic (R1-C7).

@@ -30,6 +30,17 @@ class HilbertCurve:
     bit-transposition for arbitrary dimensions.
     """
 
+    # Ceiling on brute-force per-cell enumeration in range_to_intervals()
+    # before falling back to a single full-range interval. Set high
+    # enough that realistic queries in this benchmark (narrow value
+    # range, unconstrained time axis -- measured ~640k cells) complete
+    # exactly; only genuinely pathological (near-unconstrained on every
+    # axis at once) queries hit the fallback, which trades selectivity
+    # for termination as a last resort. See the comment in
+    # range_to_intervals() for why this matters for Trinity-II
+    # specifically.
+    _MAX_ENUM_CELLS = 2_000_000
+
     def __init__(self, order, dimensions=3):
         """
         Initialize Hilbert curve.
@@ -198,6 +209,26 @@ class HilbertCurve:
             List of (start, end) Hilbert index intervals
         """
         n = self.dimensions
+
+        # Brute-force per-cell enumeration is O(product of per-axis widths)
+        # -- a box that's narrow on one axis but spans the full range on
+        # another (e.g. a value range with an unconstrained time axis)
+        # enumerates the full grid on every unconstrained axis. Measured:
+        # a 76x33x255 box (~640k cells) takes a few seconds and produces
+        # ~9,400 fragmented intervals -- tolerable as a one-time
+        # per-trapdoor cost, and now bounded further downstream (see the
+        # token-cap in TrinityII.query()). This cap is a last-resort
+        # escape hatch for boxes unconstrained on *every* axis at once,
+        # not the normal path; when it does trigger, correctness is kept
+        # (no true match dropped) at the cost of selectivity -- every
+        # entry becomes Hilbert-range-eligible and the real filtering
+        # falls entirely to Step 2/3 of TrinityII.query() (or, for
+        # Trinity-I, to prefix-token + SHVE.Match).
+        volume = 1
+        for lo, hi in zip(range_min, range_max):
+            volume *= max(1, min(self.max_coord, hi) - max(0, lo) + 1)
+            if volume > self._MAX_ENUM_CELLS:
+                return [(0, self.max_hilbert)]
 
         # Enumerate all grid cells in the query box
         hilbert_values = []

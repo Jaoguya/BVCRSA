@@ -1,0 +1,38 @@
+======================================================================
+  Experiment 05 — Homomorphic Aggregation
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+
+[+] EC-ElGamal keypair (NIST P-256) + BSGS table, max_val=50,000...
+[+] Shamir-splitting into 5 shares (t=3)...
+
+  ── |R_Q| = 100 ──
+    Naive                 2426.70 ms ±   0.86   100 decrypts
+    BVCRSA-Compact          52.66 ms ±   0.10   2 decrypts
+    BVCRSA-Verifiable       54.57 ms ±   0.09   2 decrypts + 100 proofs
+
+  ── |R_Q| = 200 ──
+    Naive                 4861.21 ms ±   1.22   200 decrypts
+    BVCRSA-Compact          55.74 ms ±   0.08   2 decrypts
+    BVCRSA-Verifiable       60.37 ms ±   0.18   2 decrypts + 200 proofs
+
+  ── |R_Q| = 300 ──
+    Naive                 7298.04 ms ±   1.78   300 decrypts
+    BVCRSA-Compact          59.05 ms ±   0.08   2 decrypts
+    BVCRSA-Verifiable       65.08 ms ±   0.15   2 decrypts + 300 proofs
+
+  ── |R_Q| = 400 ──
+    Naive                 9647.23 ms ±   2.00   400 decrypts
+    BVCRSA-Compact          62.38 ms ±   0.12   2 decrypts
+    BVCRSA-Verifiable       69.98 ms ±   0.10   2 decrypts + 400 proofs
+
+  ── |R_Q| = 500 ──
+    Naive                12401.99 ms ±   4.38   500 decrypts
+    BVCRSA-Compact          66.21 ms ±   0.11   2 decrypts
+    BVCRSA-Verifiable       75.97 ms ±   0.08   2 decrypts + 500 proofs
+
+[+] 15 rows -> /home/ubuntu/bvcrsa/CSV/exp05_homomorphic_aggregation.csv
+[+] figure -> /home/ubuntu/bvcrsa/Figures/exp05_homomorphic_aggregation.svg
+
+  Note for the manuscript: BVCRSA-Verifiable is the arm that matches the formally specified protocol (R1-C3). Report it alongside BVCRSA-Compact rather than instead of it, and say which one each claim refers to.

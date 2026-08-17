@@ -22,7 +22,7 @@ plt.rcParams.update({
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _CSVDIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "CSV")
 _FIGDIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "Figures")
-CSV_FILE = os.path.join(_CSVDIR, "exp06_agg_strategy.csv")
+CSV_FILE = os.path.join(_CSVDIR, "exp06_agg_strategy_summary.csv")
 ZOOM_CSV_FILE = os.path.join(_CSVDIR, "exp06_agg_strategy_zoom.csv")
 
 NORMAL_COLOR = '#1f78b4'   # Blue -- matches "conventional" convention elsewhere in this repo

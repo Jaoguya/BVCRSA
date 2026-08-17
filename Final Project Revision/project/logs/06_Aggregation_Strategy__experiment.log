@@ -1,0 +1,45 @@
+================================================================
+  Aggregation Strategy Comparison: Normal vs BVCRSA
+  N=10000  threshold=(3,5)  RUNS=20
+================================================================
+
+[+] Generating EC-ElGamal keypair (NIST P-256) + BSGS table...
+[+] Shamir-splitting the private key into 5 shares (t=3)...
+[+] Correctness precondition check (|SQ|=200, full decryption)...
+    OK: decrypt-then-aggregate == aggregate-then-decrypt
+
+======================================================================
+  Experiment 06 — Agg Strategy
+  host=ip-172-31-15-37  python=3.12.3
+  aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
+======================================================================
+[+] |SQ|=10
+    normal=   240.710 ms   bvcrsa=  48.519 ms   speedup=    5.0x   (exact)
+[+] |SQ|=50
+    normal=  1219.742 ms   bvcrsa=  50.142 ms   speedup=   24.3x   (exact)
+[+] |SQ|=100
+    normal=  2430.812 ms   bvcrsa=  51.514 ms   speedup=   47.2x   (exact)
+[+] |SQ|=500
+    normal= 12433.804 ms   bvcrsa=  64.202 ms   speedup=  193.7x   (sampled n=150)
+[+] |SQ|=1000
+    normal= 25373.852 ms   bvcrsa=  80.628 ms   speedup=  314.7x   (sampled n=150)
+[+] |SQ|=5000
+    normal=129632.741 ms   bvcrsa= 206.443 ms   speedup=  627.9x   (sampled n=150)
+[+] |SQ|=10000
+    normal=261041.358 ms   bvcrsa= 363.379 ms   speedup=  718.4x   (sampled n=150)
+
+[+] 14 rows -> /home/ubuntu/bvcrsa/CSV/exp06_agg_strategy.csv
+
+[+] Legacy summary also saved to /home/ubuntu/bvcrsa/CSV/exp06_agg_strategy_summary.csv
+
+================================================================================================
+      |SQ|   Normal calls   BVCRSA calls    Normal (ms)    BVCRSA (ms)    Speedup
+  --------------------------------------------------------------------------------------------
+        10             10              2         240.71         48.519       5.0x
+        50             50              2        1219.74         50.142      24.3x
+       100            100              2        2430.81         51.514      47.2x
+       500            500              2       12433.80         64.203     193.7x
+      1000           1000              2       25373.85         80.628     314.7x
+      5000           5000              2      129632.74        206.443     627.9x
+     10000          10000              2      261041.36        363.379     718.4x
+================================================================================================

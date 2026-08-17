@@ -73,7 +73,15 @@ WARMUP = 1
 # workload sweep over it costs more than every other scheme combined while
 # demonstrating nothing extra. Excluded here and reported from its Exp 2
 # single-query latency instead. State this in the caption.
-SKIP_SCHEMES = {"ABSE-Range"}
+#
+# VC-KASE (ref16) has no numeric range predicate in the source paper --
+# a throughput figure for a fixed-range query would report a real
+# latency number, but one that doesn't reflect range selectivity the way
+# every other scheme's does (see Exp 02's SKIP_RANGE_SCHEMES for the
+# same finding). Excluded for the same reason ABSE-Range's *inclusion*
+# would mislead a different way -- this would be a real number for a
+# question the scheme was never built to answer.
+SKIP_SCHEMES = {"ABSE-Range", "VC-KASE"}
 
 CONCURRENCY = "single-threaded sequential"
 RECONCILE_TOLERANCE = 0.05      # 5%

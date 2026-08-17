@@ -1,0 +1,17 @@
+================================================================
+  Aggregation Strategy Comparison: Crossover Zoom (|SQ| 1-50)
+  threshold=(3,5)  RUNS=20
+================================================================
+  |SQ|=  1  normal=   24.140 ms  bvcrsa=  48.295 ms  speedup=  0.50x
+  |SQ|=  2  normal=   48.353 ms  bvcrsa=  48.424 ms  speedup=  1.00x
+  |SQ|=  3  normal=   72.916 ms  bvcrsa=  48.738 ms  speedup=  1.50x
+  |SQ|=  5  normal=  120.854 ms  bvcrsa=  48.559 ms  speedup=  2.49x
+  |SQ|=  8  normal=  193.064 ms  bvcrsa=  48.607 ms  speedup=  3.97x
+  |SQ|= 10  normal=  240.958 ms  bvcrsa=  48.598 ms  speedup=  4.96x
+  |SQ|= 15  normal=  362.523 ms  bvcrsa=  49.081 ms  speedup=  7.39x
+  |SQ|= 20  normal=  481.989 ms  bvcrsa=  49.175 ms  speedup=  9.80x
+  |SQ|= 30  normal=  719.985 ms  bvcrsa=  49.374 ms  speedup= 14.58x
+  |SQ|= 40  normal=  944.983 ms  bvcrsa=  49.270 ms  speedup= 19.18x
+  |SQ|= 50  normal= 1187.379 ms  bvcrsa=  50.090 ms  speedup= 23.70x
+
+[+] Results saved to /home/ubuntu/bvcrsa/CSV/exp06_agg_strategy_zoom.csv
