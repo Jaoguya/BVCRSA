@@ -438,7 +438,7 @@ class LatticeIBEKSAlgo:
 
     def setup(self, kw_count=2):
         self.scheme = LattIBEKS()
-        self.scheme.setup()
+        self.scheme.setup(seed=SEED)      # reproducible A, R (was unseeded)
 
     def index_build(self, records):
         self.index = [{

@@ -62,7 +62,7 @@ ssh -i "C:/Users/Jzguyr/.ssh/bvcrsa-key.pem" ubuntu@<PUBLIC-IP>
 ```bash
 sudo apt update && sudo apt install -y python3-pip python3-venv
 python3 -m venv ~/venv && source ~/venv/bin/activate
-pip install numpy matplotlib pycryptodome py_ecc
+pip install numpy matplotlib pycryptodome py_ecc ecdsa pandas
 pip install py_arkworks_bls12381     # BLS12-381 backend — see note below
 pip install web3                     # Experiment 11 only
 echo "source ~/venv/bin/activate" >> ~/.bashrc

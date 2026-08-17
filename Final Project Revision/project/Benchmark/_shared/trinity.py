@@ -704,6 +704,33 @@ class TrinityII(TrinityI):
     # ─────────────────────────────────────────────────────────────
     #  PHASE 4: Query (Forward-Secure Search)
     # ─────────────────────────────────────────────────────────────
+    def _candidates_in_intervals(self, intervals):
+        """Entries whose Hilbert index falls in any query interval.
+
+        Replaces the full EDB scan with a binary search over a sorted
+        (hilbert_index, entry_id) list, giving ref26's advertised
+        sub-linear behaviour. The list is cached and invalidated whenever
+        EDB changes size, so updates/deletes stay correct.
+
+        Yields (entry_id, entry). Exact -- same result set as the scan.
+        """
+        import bisect
+        if (getattr(self, "_hsorted_n", None) != len(self.EDB)
+                or getattr(self, "_hsorted", None) is None):
+            self._hsorted = sorted(
+                (e['hilbert_index'], eid) for eid, e in self.EDB.items())
+            self._hsorted_n = len(self.EDB)
+        keys = [h for h, _ in self._hsorted]
+
+        seen = set()
+        for lo, hi in intervals:
+            i = bisect.bisect_left(keys, lo)
+            j = bisect.bisect_right(keys, hi)
+            for h, eid in self._hsorted[i:j]:
+                if eid not in seen:
+                    seen.add(eid)
+                    yield eid, self.EDB[eid]
+
     def query(self, trapdoor):
         """
         Phase 4: Query(EDB, τ) → results  [Trinity-II]
@@ -748,17 +775,23 @@ class TrinityII(TrinityI):
         # on the order of minutes, not milliseconds. Disclose this in the
         # manuscript's methodology, don't silently cap it away.
 
-        for entry_id, entry in self.EDB.items():
-            # ── Step 1: Range Check ──
+        # ── Step 1: Range Check, index-driven (FAIRNESS FIX, 2026-08-17) ──
+        # This loop previously scanned every entry in EDB and tested it
+        # against every query interval -- O(N * |intervals|) -- while the
+        # quotient filter that gen_index() populates went unused. (The
+        # `qf.lookup(h)` in Trinity-I's query is a no-op: every indexed
+        # entry was inserted, so it always returns True.) ref26 relies on
+        # membership testing for SUB-LINEAR search; denying Trinity that
+        # while BVCRSA keeps its own (m_enc, k_enc) context index made the
+        # comparison unfair -- see SKILL.md §11 F1/F2.
+        #
+        # Candidates are now found by binary-searching a sorted Hilbert
+        # index, so only entries actually inside a query interval are
+        # examined. This is EXACT (no approximation, no dropped match) and
+        # leaks nothing new: `entry['hilbert_index']` is already stored in
+        # the clear in EDB, exactly as BVCRSA's context index is.
+        for entry_id, entry in self._candidates_in_intervals(trapdoor['intervals']):
             h = entry['hilbert_index']
-            in_range = False
-            for interval_start, interval_end in trapdoor['intervals']:
-                if interval_start <= h <= interval_end:
-                    in_range = True
-                    break
-
-            if not in_range:
-                continue
 
             # ── Step 2: State-Aware Token Matching (deferred derivation) ──
             # When this can be attempted, its outcome is authoritative --

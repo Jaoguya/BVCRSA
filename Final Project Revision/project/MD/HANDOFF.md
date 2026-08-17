@@ -2,6 +2,22 @@
 
 Written 2026-08-17. Read this first in a new session, then `SKILL.md`.
 
+> ## 🛑 The results this run produced are SUPERSEDED
+>
+> These workers finished **2026-08-16 22:32**. `baselines.py`,
+> `vckase.py`, `latt_ibeks.py`, `trinity.py` and `Attribute-based.py`
+> were rewritten **2026-08-17 17:38**, *after* the run — so every
+> cross-scheme number below and in `logs/` came from the old fake
+> baselines. **Experiments 01–04 must be re-run** against the current
+> code; 05–08 are unaffected (they never import `baselines.py`).
+>
+> Re-measured at N=1,000 with the real baselines, VC-KASE's query is
+> **410× slower** and Trinity's **35× slower** than this run reported.
+> See `SKILL.md` §10 fact 6. Do not cite anything from this run.
+>
+> Also: a later local smoke run (N=300, d=1) **overwrote** W1's and W2's
+> `exp01`/`exp02` CSVs. Those AWS results exist only in `logs/` now.
+
 ---
 
 ## What is running right now

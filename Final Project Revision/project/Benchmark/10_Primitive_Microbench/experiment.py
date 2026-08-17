@@ -25,13 +25,14 @@ approximate the reported totals. If it does not, the totals are wrong.
 """
 
 import _bootstrap  # noqa: F401
+import csv
 import hashlib
 import hmac
 import os
 import random
 
 from baselines import timed, SEED
-from harness import Experiment, new_figure, save_figure
+from harness import Experiment, new_figure, save_figure, CSV_DIR
 
 RUNS = 200
 WARMUP = 20
@@ -227,30 +228,165 @@ def _abse_token_fn():
         return None, ""
 
 
+# ══════════════════════════════════════════════════════════════════
+#  R2-C3: the two standalone tables
+# ══════════════════════════════════════════════════════════════════
+#
+# R2-C3: "I'd like to see per-primitive microbenchmarks (single Test
+#         call, single pairing, single Merkle verify) so the totals can
+#         be checked by hand."
+#
+# "Checked by hand" needs TWO tables, not one:
+#
+#   Table A  cost of ONE call to each primitive          -> exp10_primitive_table.csv
+#   Table B  every reported total decomposed into        -> exp10_reconciliation.csv
+#            (calls x unit cost), next to what was
+#            actually measured, with the ratio
+#
+# Table B is the one that answers the objection: a reader multiplies the
+# operation count by the unit cost from Table A and must land on the
+# published total. Both are emitted as CSV *and* as Markdown ready to
+# paste into the manuscript.
+#
+# Each spec row: (experiment, what is predicted, [(primitive, calls)...],
+#                 source CSV for the measured value, row filter, column)
+RECONCILE_SPEC = [
+    ("Exp 01", "trapdoor, d=1 (m_c=4 TokenGen)",
+     [("abse_tokengen", 4)],
+     "exp01_trapdoor_gen.csv", {"scheme": "BVCRSA", "d": "1"}, "mean_ms"),
+    ("Exp 01", "trapdoor, d=5 (m_c=20 TokenGen)",
+     [("abse_tokengen", 20)],
+     "exp01_trapdoor_gen.csv", {"scheme": "BVCRSA", "d": "5"}, "mean_ms"),
+    ("Exp 04", "verify r=500, naive single proofs (multiproof must beat this)",
+     [("merkle_verify_single", 500), ("hmac_sha256", 1)],
+     "exp04_verification_overhead.csv",
+     {"scheme": "BVCRSA", "returned_results": "500"}, "mean_ms"),
+    ("Exp 05", "BVCRSA-Compact floor: 2 threshold decrypts",
+     [("threshold_decrypt", 2)],
+     "exp05_homomorphic_aggregation.csv",
+     {"arm": "BVCRSA-Compact", "matched_records": "100"}, "mean_ms"),
+    ("Exp 05", "Naive, r=100: one threshold decrypt per record",
+     [("threshold_decrypt", 100)],
+     "exp05_homomorphic_aggregation.csv",
+     {"arm": "Naive", "matched_records": "100"}, "mean_ms"),
+    ("Exp 06", "BVCRSA arm: 2 threshold decrypts + |S_Q|-1 EC adds (|S_Q|=1000)",
+     [("threshold_decrypt", 2), ("ecelgamal_add", 999)],
+     "exp06_agg_strategy.csv", {"arm": "BVCRSA", "SQ": "1000"}, "mean_ms"),
+    ("Exp 06", "Conventional arm, |S_Q|=1000: one threshold decrypt per record",
+     [("threshold_decrypt", 1000)],
+     "exp06_agg_strategy.csv", {"arm": "Conventional", "SQ": "1000"}, "mean_ms"),
+    ("Exp 02", "BVCRSA query at N=1,000: N x 0.16 pairings/doc x ABSE.Test",
+     [("abse_test", 160)],
+     "exp02_query_processing.csv",
+     {"sweep": "vs_N", "scheme": "BVCRSA", "N": "1000"}, "mean_ms"),
+]
+
+# Operation counts measured with cProfile on the query path, N=300
+# (SKILL.md §11 fairness audit, 2026-08-17). Kept here so Table B can
+# state pairings-per-document beside the per-primitive cost -- that
+# product is what makes a query total checkable by hand.
+PER_DOC_PAIRINGS = {
+    "BVCRSA": 0.16, "VC-KASE": 1.00, "ABSE-Range": 5.26,
+    "Trinity": 0.0, "Latt-IBEKS": 0.0,
+}
+
+
+def _load_measured(fname, filt, col):
+    """Pull one measured value from another experiment's CSV, if present."""
+    path = os.path.join(CSV_DIR, fname)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                if all(str(row.get(k, "")) == str(v) for k, v in filt.items()):
+                    return float(row[col])
+    except (OSError, ValueError, KeyError):
+        return None
+    return None
+
+
 def reconcile(rows):
-    """Print the hand-check table the reviewers asked for."""
+    """Emit Table A and Table B (R2-C3). Returns nothing; writes 2 CSVs."""
     cost = {r["primitive"]: r["mean_ms"] for r in rows}
-    print("\n" + "=" * 70)
-    print("  RECONCILIATION — expected totals from primitive costs")
-    print("=" * 70)
+    ci = {r["primitive"]: r["ci95_ms"] for r in rows}
+
+    # ── Table A — one call to each primitive ────────────────────────
+    a_path = os.path.join(CSV_DIR, "exp10_primitive_table.csv")
+    with open(a_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["primitive", "backend", "detail", "mean_ms", "ci95_ms",
+                    "runs", "calls_per_query_note"])
+        for r in rows:
+            w.writerow([r["primitive"], r.get("backend", ""),
+                        r.get("detail", ""), f"{r['mean_ms']:.6f}",
+                        f"{r['ci95_ms']:.6f}", r["runs"],
+                        r.get("calls_per_query_note", "")])
+    print(f"\n[+] Table A (per-primitive) -> {a_path}")
+
+    print("\n" + "=" * 78)
+    print("  TABLE A — cost of ONE call to each primitive (R2-C3)")
+    print("=" * 78)
+    print(f"| {'Primitive':<28} | {'Backend':<22} | {'Mean (ms)':>12} | {'95% CI':>10} |")
+    print(f"|{'-'*30}|{'-'*24}|{'-'*14}|{'-'*12}|")
+    for r in sorted(rows, key=lambda r: r["mean_ms"]):
+        print(f"| {r['primitive'].replace('_',' '):<28} | "
+              f"{str(r.get('backend','')):<22} | {r['mean_ms']:12.6f} | "
+              f"{r['ci95_ms']:10.6f} |")
+
+    # ── Table B — totals decomposed, predicted vs measured ──────────
+    b_path = os.path.join(CSV_DIR, "exp10_reconciliation.csv")
+    print("\n" + "=" * 78)
+    print("  TABLE B — every total decomposed into (calls x unit cost)")
+    print("=" * 78)
+    print(f"| {'Exp':<7} | {'Quantity':<52} | {'Predicted':>10} | "
+          f"{'Measured':>10} | {'Ratio':>7} |")
+    print(f"|{'-'*9}|{'-'*54}|{'-'*12}|{'-'*12}|{'-'*9}|")
+
+    with open(b_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["experiment", "quantity", "decomposition",
+                    "predicted_ms", "measured_ms", "ratio_measured_over_predicted",
+                    "verdict"])
+        for label, what, terms, src, filt, col in RECONCILE_SPEC:
+            if any(p not in cost for p, _ in terms):
+                continue                      # primitive unavailable this run
+            predicted = sum(cost[p] * n for p, n in terms)
+            decomp = " + ".join(f"{n}x{p}({cost[p]:.4f}ms)" for p, n in terms)
+            measured = _load_measured(src, filt, col)
+            if measured is None:
+                ratio, verdict, mtxt, rtxt = "", "NOT YET MEASURED", "-", "-"
+            else:
+                ratio = measured / predicted if predicted else 0.0
+                # A total far BELOW its primitive floor means the harness is
+                # not doing the work it claims -- exactly the R1-C4 / R3-14
+                # failure mode that produced the old 10^6 q/s figure.
+                if ratio < 0.5:
+                    verdict = "BELOW FLOOR — harness suspect"
+                elif ratio > 3.0:
+                    verdict = "far above — unmodelled cost"
+                else:
+                    verdict = "consistent"
+                mtxt, rtxt = f"{measured:10.4f}", f"{ratio:7.2f}"
+            w.writerow([label, what, decomp, f"{predicted:.4f}",
+                        "" if measured is None else f"{measured:.4f}",
+                        "" if measured is None else f"{ratio:.4f}", verdict])
+            print(f"| {label:<7} | {what:<52} | {predicted:10.4f} | "
+                  f"{mtxt:>10} | {rtxt:>7} |")
+    print(f"\n[+] Table B (reconciliation) -> {b_path}")
+
+    # ── Query-total check: pairings/doc x unit pairing cost ─────────
     test = cost.get("abse_test")
-    tok = cost.get("abse_tokengen")
-    if tok:
-        print(f"  Exp 01 trapdoor, d=5 (m_c=20 TokenGen):"
-              f" {20 * tok:10.4f} ms expected")
     if test:
-        print(f"  Exp 02 query, exhaustive match N_u*m_c = 1000*4:"
-              f" {4000 * test:10.4f} ms expected")
-        print("     ^ if the measured query time is far below this, the "
-              "harness is not doing exhaustive ABSE matching (R1-C4, R3-14)")
-    mv = cost.get("merkle_verify_single")
-    if mv:
-        print(f"  Exp 04 verify, r=500 naive single proofs:"
-              f" {500 * mv:10.4f} ms expected (multiproof should be lower)")
-    td = cost.get("threshold_decrypt")
-    if td:
-        print(f"  Exp 05/06 BVCRSA arm, 2 threshold decrypts:"
-              f" {2 * td:10.4f} ms expected floor")
+        print("\n  Query totals are checkable as: N x (pairings/doc) x "
+              f"ABSE.Test({test:.4f} ms)")
+        print(f"  {'scheme':<12} {'pairings/doc':>13} {'=> per 1,000 docs':>20}")
+        for name, ppd in PER_DOC_PAIRINGS.items():
+            if ppd:
+                print(f"  {name:<12} {ppd:13.2f} {1000 * ppd * test:17.1f} ms")
+        print("  (counts measured with cProfile at N=300 — SKILL.md §11 F1.)")
+        print("  A reported query total far below its row here means the "
+              "search is not doing the matching it claims (R1-C4, R3-14).")
 
 
 def plot(rows):
