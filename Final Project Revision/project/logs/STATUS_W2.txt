@@ -1,11 +1,10 @@
-worker=W2 host=ip-172-31-15-107 started=2026-08-16 18:26:12 UTC
+worker=W2 host=ip-172-31-15-107 started=2026-08-17 18:12:26 UTC
 python=Python 3.12.3
 ---------------------------------------------------------------
-10_Primitive_Microbench__experiment        OK         2s
-03_Query_Throughput__experiment            OK      5762s
-01_Trapdoor_Gen__experiment                OK      1361s
+01_Trapdoor_Gen__experiment                OK      1519s
+03_Query_Throughput__experiment            OK     45431s
 ---------------------------------------------------------------
-elapsed=118 min  finished=2026-08-16 20:24:57 UTC
+elapsed=782 min  finished=2026-08-18 07:14:56 UTC
 CSV:
   CSV/exp01_trapdoor_gen.csv
   CSV/exp03_query_throughput.csv

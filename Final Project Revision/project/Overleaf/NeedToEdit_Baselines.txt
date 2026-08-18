@@ -1,0 +1,239 @@
+================================================================================
+  BVCRSA -- NeedToEdit (Baseline-Fidelity Session, 2026-08-17/18)
+  Everything that needs to change in Overleaf/BVCRSA as a result of this
+  session's work: rebuilding the four baselines with real cryptography,
+  the cross-scheme fairness audit, and the Exp01-04 AWS rerun.
+  Companion: ../MD/SKILL.md sections 10-11 (defect register, F1-F6, L1-L7),
+  ../Benchmark/_shared/latt_ibeks.py and Attribute-based.py docstrings.
+
+  NOTHING in Overleaf/BVCRSA has been touched for the items below UNLESS
+  marked [DONE] -- three edits already landed earlier this session
+  (Communication table, Primitive-microbenchmark table, Exp03 run-count
+  text) and are listed here only for the record.
+
+  Work top-down. [BLOCKING] must be resolved before submission.
+  [DECISION] needs your call, not just data, before text can be written.
+  [WAIT-FOR-RERUN] needs the currently-running Exp01-04 AWS job to finish.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. [DONE] Communication (KB) table -- was dummy values
+    Section: V, Communication Cost Analysis
+--------------------------------------------------------------------------------
+Replaced placeholder numbers (1.63/22.90/42.08 etc.) with real Exp08
+measurements -- that experiment doesn't touch anything changed this
+session, so the existing CSV data was already valid. New values:
+
+  N=10^4, r=100:  trapdoor 4.94 KB, R_Q1 8.39 KB,  R_Q2 122.28 KB
+  N=10^4, r=500:  trapdoor 8.06 KB, R_Q1 8.39 KB,  R_Q2 533.93 KB
+  N=10^5, r=100:  trapdoor 4.94 KB, R_Q1 59.95 KB, R_Q2 143.67 KB
+  N=10^5, r=500:  trapdoor 8.06 KB, R_Q1 59.95 KB, R_Q2 640.99 KB
+
+
+--------------------------------------------------------------------------------
+2. [DONE] Primitive-level microbenchmark table -- was "XX +/- XX"
+    Section: V, Primitive Microbenchmarks
+--------------------------------------------------------------------------------
+Reran Exp10 fresh (~seconds), filled in:
+
+  ABSE Test                       2.078 +/- 0.074 ms
+  Bilinear pairing                0.853 +/- 0.040 ms
+  Merkle-proof verification       6.70  +/- 1.13  us
+  Bitmap-block operation          1.35  +/- 0.14  us
+  EC-ElGamal ciphertext addition  16.31 +/- 1.00  us
+
+
+--------------------------------------------------------------------------------
+3. [DONE] Query Throughput run-count text -- said 20, code runs 5
+    Section: V, Query Throughput
+--------------------------------------------------------------------------------
+Code has always used RUNS=5 for this experiment (Trinity's real per-query
+cost makes 20 runs take 40+ hours). Text corrected from "20 independent
+runs" to "5 independent runs" with a one-sentence reason. Every OTHER
+figure in the manuscript is genuinely 20 runs -- this is the only
+exception, and it's now stated as one instead of silently wrong.
+
+
+--------------------------------------------------------------------------------
+4. [WAIT-FOR-RERUN] [BLOCKING] Two "consistently achieves" claims are false
+    Section: V, Trapdoor Generation Time / Query Throughput
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS (trapdoor gen):
+  "BVCRSA consistently achieves the lowest latency, increasing only from
+   approximately 0.9 ms to 2.2 ms..."
+
+CURRENTLY SAYS (throughput):
+  "BVCRSA consistently achieves the highest throughput..."
+
+MEASURED (this session, pre-rerun, local machine):
+  Trapdoor gen, d=1: VC-KASE 1.01ms, Latt-IBEKS 1.10ms, BVCRSA 2.86ms --
+  BVCRSA is NOT lowest.
+  Query latency, N=1,000: Latt-IBEKS 5.9ms vs BVCRSA 224.5ms -- an 18-38x
+  gap depending on N, which directly inverts the throughput claim too
+  (throughput = 1/latency in this suite's methodology).
+
+ACTION: do not touch this text until the AWS rerun's real CSVs land --
+these are local-machine numbers, not final. Once real numbers are in,
+rewrite both claims to state the actual ranking, and reposition around
+capability (conjunctive range + access control + aggregation + verify,
+simultaneously, per Table I) rather than raw speed. See item 9.
+
+
+--------------------------------------------------------------------------------
+5. [BLOCKING] "<20ms" aggregation claim is arithmetically impossible
+    Section: V, Effect of Homomorphic Aggregation
+--------------------------------------------------------------------------------
+
+CURRENTLY SAYS:
+  "BVCRSA maintains execution times below 20 ms across all workloads..."
+
+One real threshold decryption = 35.58ms (Exp10, this session: 29.28ms on
+a different run -- use whichever CSV is authoritative). BVCRSA performs
+TWO per aggregate query (SUM, COUNT) => a floor around 60-71ms depending
+on which measured value is cited, never <20ms. The comparison to Naive
+survives (Naive is ~250-1000x worse regardless); the specific "<20ms"
+number does not. Predates this session (pre-existing finding, still
+unresolved in the current manuscript text).
+
+REPLACE WITH: state the real floor (recompute from whichever threshold-
+decrypt CSV is final) and keep the multiplicative comparison to Naive,
+which is the number that actually survives.
+
+
+--------------------------------------------------------------------------------
+6. [DECISION] Latt-IBEKS trapdoor sampling -- forgeable, needs disclosure
+    Section: V, wherever Latt-IBEKS's trapdoor cost is cited
+--------------------------------------------------------------------------------
+The trapdoor sampler implemented for this baseline (MP12 gadget trapdoor,
+deterministic preimage) is demonstrably forgeable -- ~204 observed
+trapdoors let an attacker recover the master trapdoor R exactly and forge
+trapdoors for unqueried keywords. A randomization fix was attempted this
+session and confirmed NOT to work (the published trapdoor structurally
+reveals both halves of the relevant equation regardless of randomization;
+real Gaussian perturbation sampling is needed, which is high-risk to
+implement correctly under time pressure -- deliberately not attempted).
+
+Consequence: Latt-IBEKS's measured trapdoor-gen cost (~1ms) is a LOWER
+BOUND, not ref28's real cost. Ref28's own Fig. 2(b) puts their trapdoor
+at ~300s at n=17.
+
+DECIDE ONE:
+  (a) Implement real Gaussian sampling before submission (highest-risk
+      code in the suite -- budget accordingly).
+  (b) Report Latt-IBEKS's trapdoor cost as an explicit lower bound
+      alongside ref28's real ~300s figure, and disclose the substitution.
+      Exp 01 headline flips from "BVCRSA loses by ~3x" to "BVCRSA wins by
+      ~10^5x" depending on which number is cited -- pick one and say why.
+
+Full technical writeup: Benchmark/_shared/latt_ibeks.py module docstring.
+
+
+--------------------------------------------------------------------------------
+7. [DECISION] Trinity's query cost is inflated by a benchmark-design
+   mismatch, not representative of ref26's real cost
+    Section: V, Query Processing Time / Query Throughput
+--------------------------------------------------------------------------------
+Forcing a 1-D numeric range query onto one axis of Trinity's 3-D Hilbert
+curve, with the other two axes unconstrained, fragments the query into
+thousands of Hilbert intervals (11,381 at N=1,000) and tens of thousands
+of tokens (18,558), driving millions of HMAC operations per query. This
+is a worst case for ref26's data structure, not a fair characterization
+of it -- Trinity is designed for genuine spatio-temporal box queries.
+
+DECIDE ONE:
+  (a) Disclose the mapping and the resulting fragmentation as a stated
+      limitation of this comparison (cheap, one paragraph).
+  (b) Add a second sweep posing a real spatio-temporal query where
+      Trinity is used as designed, alongside the current one.
+
+Do not present current Trinity latency numbers as ref26's inherent cost
+without one of the above.
+
+
+--------------------------------------------------------------------------------
+8. [DECISION] BVCRSA's own ABSE.Test doesn't check PP/MSK (pre-existing,
+   not introduced this session, but still open)
+    Section: Security Analysis / wherever ABSE.Test cost is quoted
+--------------------------------------------------------------------------------
+test() performs a real pairing but the policy check is a plaintext `in`
+test -- every measured ABSE.Test timing authorizes nobody. Fixing this
+(concrete form of R1-C2/R3-4) will likely RAISE BVCRSA's own measured
+cost. Budget for that before quoting any final Exp02 number as the
+paper's headline. Full writeup: ImplementFIX/01_Protocol_Fixes.md (if
+still present -- confirm, this file was deleted from the repo earlier
+this session and may need restoring from git history).
+
+
+--------------------------------------------------------------------------------
+9. [DECISION] Index-pruning disclosure (F1)
+    Section: V, Query Processing Time, wherever the comparison is
+    introduced
+--------------------------------------------------------------------------------
+BVCRSA is the only scheme in the comparison permitted to prune candidates
+via an index (context filter + bitmap) before any pairing runs -- 0.16
+pairings/doc measured, vs. VC-KASE's 1.00 and ABSE-Range's 5.26. This is
+legitimate (a linear scan is faithful to what VC-KASE/ABSE-Range/
+Latt-IBEKS's papers actually specify), but a reader will otherwise assume
+all five schemes scan the candidate set equally. State explicitly that
+much of BVCRSA's Exp02 advantage is algorithmic pruning, not cheaper
+per-operation cryptography.
+
+
+--------------------------------------------------------------------------------
+10. [DECISION] Query-scope / selectivity mismatch (E1')
+    Section: V, wherever schemes are first compared
+--------------------------------------------------------------------------------
+BVCRSA's trapdoor binds one (machine, t_slot) context; the baselines scan
+all N for (sensor, range). Quantified at N=1,000: BVCRSA returns 6 of 11
+true matches; Trinity, ABSE-Range, and Latt-IBEKS all return 11. BVCRSA is
+partly faster because it searches a narrower query, not only because its
+cryptography is cheaper.
+
+DECIDE ONE:
+  (a) Disclose the selectivity difference plainly (cheap).
+  (b) Align all five schemes to one canonical query definition and
+      re-run -- more defensible, more work, cost/benefit unclear given
+      the AWS rerun already in flight.
+
+
+--------------------------------------------------------------------------------
+11. [WAIT-FOR-RERUN] Blockchain Anchoring Overhead table -- still symbolic
+    Section: V, Blockchain Anchoring Overhead
+--------------------------------------------------------------------------------
+Table currently has $\overline{G}\pm\sigma_G$ etc. placeholders. Needs
+Experiment 11, which needs a dedicated 3-node Ethereum Clique-PoA
+consortium -- separate infrastructure task, scoped but not started
+(see chat: setup spec already worked out, ~1.5h total once begun,
+independent of the current Exp01-04 job). Table as currently scoped only
+covers single-node gas/payload/latency, not multi-node sync -- R7-C5
+specifically wants multi-node; a single-node run would not fully answer
+it even once populated.
+
+
+--------------------------------------------------------------------------------
+12. [WAIT-FOR-RERUN] Every other Exp01-04 number in the prose and figures
+    Section: V, Trapdoor Generation Time / Query Processing Time (all 3
+    sweeps) / Query Throughput / Verification Overhead
+--------------------------------------------------------------------------------
+Once the current AWS rerun finishes: every specific millisecond figure
+quoted in these four subsections' prose (not just the two "consistently
+achieves" sentences in item 4) needs replacing with the real numbers, and
+every corresponding SVG figure needs regenerating from the new CSVs and
+re-embedding (SVG -> PDF via inkscape, per the project's existing
+convention).
+
+Figures that do NOT need touching, because nothing that produces them
+changed this session (confirmed via git diff): Effect of Homomorphic
+Aggregation, Aggregation Strategy Comparison (670.5x), Aggregate-Recovery
+Scalability (BSGS), Communication Cost (already updated, item 1), Storage
+Overhead (asymptotic only, no figure). Leaving these untouched is
+deliberate -- see the "targeted revision vs. wholesale rewrite" reasoning
+from chat: a revision where only the experiments tied to the stated fix
+move, and everything else stays byte-identical, is what survives a
+reviewer who's already primed to distrust changed numbers.
+
+================================================================================
+  END
+================================================================================

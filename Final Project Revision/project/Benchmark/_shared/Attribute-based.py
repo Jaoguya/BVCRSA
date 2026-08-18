@@ -281,25 +281,39 @@ def search(ct_doc, trapdoor):
 
     # Step B: keyword matching -- real pairing-equality check, and the
     # result now actually gates the outcome.
+    #
+    # F4 fix (2026-08-17): early-exit on the first match. The previous
+    # version tested every (ciphertext, token) pair unconditionally,
+    # inflating the measured pairings/doc (5.26, per the cross-scheme
+    # fairness audit) well above what a real server implementation -- or
+    # ref27's own stated Search complexity, (2|N|+2|M|)P + (1+|N|)G_T --
+    # would spend once a match is already established.
     if trapdoor['kw_trap']:
         kw_ok = False
         for kwc in ct_doc['keyword_cipher']:
+            if kw_ok:
+                break
             for td in trapdoor['kw_trap']:
                 if GT.pairing(td, kwc['A']) == kwc['B']:
                     kw_ok = True
+                    break
         if not kw_ok:
             return None
     else:
         kw_ok = True
 
     # Step C: range matching -- real pairing-equality check across the
-    # canonical cover; O(log domain) x O(log range) pairings.
+    # canonical cover; O(log domain) x O(log range) pairings worst case,
+    # early-exited the same way as Step B (F4).
     if trapdoor['range_trap']:
         range_ok = False
         for vc in ct_doc['value_cipher']:
+            if range_ok:
+                break
             for td in trapdoor['range_trap']:
                 if GT.pairing(td, vc['A']) == vc['B']:
                     range_ok = True
+                    break
         if not range_ok:
             return None
 

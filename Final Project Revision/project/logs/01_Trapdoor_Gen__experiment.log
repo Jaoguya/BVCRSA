@@ -8,40 +8,40 @@
 
   ── BVCRSA ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 0066279dbbbf211f...
-    d=1  mean=  3.2760 ms  ±0.0277  (sd=0.0632, m_c=4)
-    d=2  mean=  6.5616 ms  ±0.0535  (sd=0.1221, m_c=8)
-    d=3  mean= 10.0219 ms  ±0.2807  (sd=0.6405, m_c=12)
-    d=4  mean= 13.2540 ms  ±0.0485  (sd=0.1106, m_c=16)
-    d=5  mean= 16.7836 ms  ±0.0705  (sd=0.1608, m_c=20)
+     Genesis: 00e39c1a8888c948...
+    d=1  mean=  3.1170 ms  ±0.0301  (sd=0.0687, m_c=4)
+    d=2  mean=  6.2413 ms  ±0.0389  (sd=0.0887, m_c=8)
+    d=3  mean=  9.3620 ms  ±0.0465  (sd=0.1062, m_c=12)
+    d=4  mean= 12.4979 ms  ±0.0537  (sd=0.1225, m_c=16)
+    d=5  mean= 15.5818 ms  ±0.0490  (sd=0.1118, m_c=20)
 
   ── Trinity ──
-    d=1  mean=3704.1761 ms  ±17.2075  (sd=39.2623, m_c=4)
-    d=2  mean=7650.2358 ms  ±18.5117  (sd=42.2382, m_c=8)
-    d=3  mean=11425.1402 ms  ±21.0658  (sd=48.0658, m_c=12)
-    d=4  mean=15334.4842 ms  ±58.4365  (sd=133.3347, m_c=16)
-    d=5  mean=18554.9337 ms  ±180.1468  (sd=411.0412, m_c=20)
+    d=1  mean=3498.0343 ms  ±5.7885  (sd=13.2075, m_c=4)
+    d=2  mean=7014.0508 ms  ±4.0600  (sd=9.2637, m_c=8)
+    d=3  mean=10516.4755 ms  ±4.0160  (sd=9.1634, m_c=12)
+    d=4  mean=14095.2605 ms  ±43.8810  (sd=100.1234, m_c=16)
+    d=5  mean=17543.0407 ms  ±6.4327  (sd=14.6775, m_c=20)
 
   ── VC-KASE ──
-    d=1  mean=  0.2632 ms  ±0.0032  (sd=0.0073, m_c=4)
-    d=2  mean=  0.2717 ms  ±0.0045  (sd=0.0103, m_c=8)
-    d=3  mean=  0.2721 ms  ±0.0062  (sd=0.0141, m_c=12)
-    d=4  mean=  0.2688 ms  ±0.0063  (sd=0.0144, m_c=16)
-    d=5  mean=  0.2778 ms  ±0.0059  (sd=0.0135, m_c=20)
+    d=1  mean=  1.1577 ms  ±0.0158  (sd=0.0362, m_c=4)
+    d=2  mean=  1.4865 ms  ±0.0178  (sd=0.0407, m_c=8)
+    d=3  mean=  1.8252 ms  ±0.0169  (sd=0.0385, m_c=12)
+    d=4  mean=  2.1643 ms  ±0.0232  (sd=0.0529, m_c=16)
+    d=5  mean=  2.4948 ms  ±0.0209  (sd=0.0478, m_c=20)
 
   ── ABSE-Range ──
-    d=1  mean=  4.6958 ms  ±0.0453  (sd=0.1033, m_c=4)
-    d=2  mean=  9.4498 ms  ±0.0607  (sd=0.1384, m_c=8)
-    d=3  mean= 14.0739 ms  ±0.0845  (sd=0.1927, m_c=12)
-    d=4  mean= 18.6735 ms  ±0.0684  (sd=0.1561, m_c=16)
-    d=5  mean= 23.4338 ms  ±0.0912  (sd=0.2082, m_c=20)
+    d=1  mean=  5.5533 ms  ±0.0337  (sd=0.0770, m_c=4)
+    d=2  mean= 11.1360 ms  ±0.0483  (sd=0.1102, m_c=8)
+    d=3  mean= 16.6818 ms  ±0.0377  (sd=0.0860, m_c=12)
+    d=4  mean= 22.2413 ms  ±0.0430  (sd=0.0980, m_c=16)
+    d=5  mean= 27.9192 ms  ±0.0826  (sd=0.1886, m_c=20)
 
   ── Latt-IBEKS ──
-    d=1  mean=  0.0322 ms  ±0.0023  (sd=0.0053, m_c=4)
-    d=2  mean=  0.0283 ms  ±0.0015  (sd=0.0035, m_c=8)
-    d=3  mean=  0.0269 ms  ±0.0016  (sd=0.0035, m_c=12)
-    d=4  mean=  0.0244 ms  ±0.0005  (sd=0.0011, m_c=16)
-    d=5  mean=  0.0242 ms  ±0.0012  (sd=0.0028, m_c=20)
+    d=1  mean=  0.8135 ms  ±0.0164  (sd=0.0374, m_c=4)
+    d=2  mean=  1.6382 ms  ±0.0215  (sd=0.0491, m_c=8)
+    d=3  mean=  2.4381 ms  ±0.0230  (sd=0.0524, m_c=12)
+    d=4  mean=  3.2516 ms  ±0.0271  (sd=0.0618, m_c=16)
+    d=5  mean=  4.0490 ms  ±0.0184  (sd=0.0420, m_c=20)
 
 [+] 25 rows -> /home/ubuntu/bvcrsa/CSV/exp01_trapdoor_gen.csv
 [+] figure -> /home/ubuntu/bvcrsa/Figures/exp01_trapdoor_gen.svg

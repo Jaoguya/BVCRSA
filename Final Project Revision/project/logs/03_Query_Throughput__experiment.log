@@ -8,31 +8,31 @@
 
   ── BVCRSA ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 006898d288e1d62e...
-    Q=     5           0.3 q/s  latency=3566.0620 ms  PASS
-    Q=    10           0.3 q/s  latency=3565.9431 ms  PASS
-    Q=    25           0.3 q/s  latency=3565.5833 ms  PASS
-    Q=    50           0.3 q/s  latency=3553.3171 ms  PASS
+     Genesis: 0045e2cecf85bd1c...
+    Q=     5           0.3 q/s  latency=3568.1148 ms  PASS
+    Q=    10           0.3 q/s  latency=3567.6718 ms  PASS
+    Q=    25           0.3 q/s  latency=3559.6236 ms  PASS
+    Q=    50           0.3 q/s  latency=3728.0035 ms  PASS
 
   ── Trinity ──
-    Q=     5           0.1 q/s  latency=8641.0442 ms  PASS
-    Q=    10           0.1 q/s  latency=8711.6882 ms  PASS
-    Q=    25           0.1 q/s  latency=8814.3847 ms  PASS
-    Q=    50           0.1 q/s  latency=9089.1237 ms  PASS
+    Q=     5           0.0 q/s  latency=83351.2504 ms  PASS
+    Q=    10           0.0 q/s  latency=82959.0146 ms  PASS
+    Q=    25           0.0 q/s  latency=82862.0960 ms  PASS
+    Q=    50           0.0 q/s  latency=87641.3513 ms  PASS
 
   ── VC-KASE ──
-    Q=     5          37.3 q/s  latency= 26.7798 ms  PASS
-    Q=    10          37.3 q/s  latency= 26.8294 ms  PASS
-    Q=    25          37.6 q/s  latency= 26.6092 ms  PASS
-    Q=    50          37.2 q/s  latency= 26.8740 ms  PASS
+    Q=     5           0.1 q/s  latency=11304.2702 ms  PASS
+    Q=    10           0.1 q/s  latency=11470.0014 ms  PASS
+    Q=    25           0.1 q/s  latency=10809.4506 ms  PASS
+    Q=    50           0.1 q/s  latency=11165.8171 ms  PASS
 
   ── ABSE-Range ── SKIPPED (see SKIP_SCHEMES note)
 
   ── Latt-IBEKS ──
-    Q=     5          30.0 q/s  latency= 33.3747 ms  PASS
-    Q=    10          30.4 q/s  latency= 32.8679 ms  PASS
-    Q=    25          30.4 q/s  latency= 32.9148 ms  PASS
-    Q=    50          30.3 q/s  latency= 33.0073 ms  PASS
+    Q=     5          17.2 q/s  latency= 58.0552 ms  PASS
+    Q=    10          18.2 q/s  latency= 55.0551 ms  PASS
+    Q=    25          18.0 q/s  latency= 55.4730 ms  PASS
+    Q=    50          18.2 q/s  latency= 54.9008 ms  PASS
 
 [+] 16 rows -> /home/ubuntu/bvcrsa/CSV/exp03_query_throughput.csv
 
