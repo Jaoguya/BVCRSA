@@ -8,42 +8,42 @@
   2a: query time vs selectivity (N=10,000, d=1)
 ──────────────────────────────────────────────────────────────────────
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 0027fb58669c19e0...
+     Genesis: 00b76c895b4b8cc4...
 
   ── BVCRSA ──
-    range=10%  mean=1508.3549 ms ±0.4672  matched=5
-    range=20%  mean=2702.2597 ms ±0.6323  matched=8
-    range=30%  mean=3767.1814 ms ±1.0503  matched=8
-    range=50%  mean=6293.4329 ms ±1.6268  matched=12
-    range=80%  mean=10938.7136 ms ±1.5823  matched=21
+    range=10%  mean=1625.7736 ms ±0.1727  matched=5
+    range=20%  mean=2912.4016 ms ±0.2253  matched=8
+    range=30%  mean=4059.9706 ms ±0.2506  matched=8
+    range=50%  mean=6778.3344 ms ±0.3934  matched=12
+    range=80%  mean=11788.2356 ms ±0.6635  matched=21
 
   ── Trinity ──
-    range=10%  mean=3271.0375 ms ±0.9747  matched=1112
-    range=20%  mean=3371.2360 ms ±1.0095  matched=2082
-    range=30%  mean=5333.7696 ms ±1.1496  matched=3059
-    range=50%  mean=4174.7986 ms ±1.0443  matched=5025
-    range=80%  mean=7348.9297 ms ±0.8850  matched=8018
+    range=10%  mean=22400.0609 ms ±6.3060  matched=44
+    range=20%  mean=43620.0873 ms ±11.3279  matched=79
+    range=30%  mean=88434.2535 ms ±122.4273  matched=123
+    range=50%  mean=131166.6012 ms ±44.6909  matched=212
+    range=80%  mean=376039.2597 ms ±84.9787  matched=381
 
   ── VC-KASE ──
-    range=10%  mean=  26.2651 ms ±0.0679  matched=44
-    range=20%  mean=  25.7590 ms ±0.0371  matched=79
-    range=30%  mean=  25.8127 ms ±0.0369  matched=123
-    range=50%  mean=  25.7410 ms ±0.0441  matched=212
-    range=80%  mean=  25.7010 ms ±0.0556  matched=381
+    range=10%  mean=11855.3085 ms ±2.8412  matched=480
+    range=20%  mean=11854.3787 ms ±0.5771  matched=480
+    range=30%  mean=11853.0328 ms ±0.3891  matched=480
+    range=50%  mean=11853.7333 ms ±0.4797  matched=480
+    range=80%  mean=11853.7518 ms ±0.5110  matched=480
 
   ── ABSE-Range ──
-    range=10%  mean=58277.0186 ms ±115.7737  matched=44
-    range=20%  mean=54844.9206 ms ±465.2397  matched=79
-    range=30%  mean=55057.2691 ms ±151.2938  matched=123
-    range=50%  mean=55215.4994 ms ±14.2909  matched=212
-    range=80%  mean=55242.2314 ms ±7.8159  matched=381
+    range=10%  mean=50635.0776 ms ±1.7067  matched=44
+    range=20%  mean=55009.6782 ms ±1.3218  matched=79
+    range=30%  mean=58796.3790 ms ±1.1673  matched=123
+    range=50%  mean=60193.6250 ms ±1.0410  matched=212
+    range=80%  mean=61163.2928 ms ±1.7183  matched=381
 
   ── Latt-IBEKS ──
-    range=10%  mean=  30.0748 ms ±0.1662  matched=44
-    range=20%  mean=  29.5731 ms ±0.0887  matched=79
-    range=30%  mean=  30.4727 ms ±0.0716  matched=123
-    range=50%  mean=  30.4059 ms ±0.0796  matched=212
-    range=80%  mean=  29.5609 ms ±0.1250  matched=381
+    range=10%  mean=  44.7563 ms ±0.6752  matched=44
+    range=20%  mean=  48.8514 ms ±0.2546  matched=77
+    range=30%  mean=  54.8791 ms ±0.2546  matched=123
+    range=50%  mean=  58.5691 ms ±0.3855  matched=212
+    range=80%  mean=  58.0455 ms ±0.3926  matched=381
 
 ──────────────────────────────────────────────────────────────────────
   2b: query time vs database size N
@@ -51,94 +51,94 @@
 
   ── N = 1,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 0004b4f66777f4aa...
-    BVCRSA       mean= 256.2205 ms ±0.1082  matched=6
-    Trinity      mean= 502.4823 ms ±0.1966  matched=312
-    VC-KASE      mean=   2.4500 ms ±0.0191  matched=11
-    ABSE-Range   mean=5524.3877 ms ±0.8695  matched=11
-    Latt-IBEKS   mean=   2.7981 ms ±0.0200  matched=11
+     Genesis: 00d79f4db1fc1efc...
+    BVCRSA       mean= 291.7442 ms ±0.0915  matched=6
+    Trinity      mean=9138.6389 ms ±3.0045  matched=11
+    VC-KASE      mean=1186.0519 ms ±0.1668  matched=43
+    ABSE-Range   mean=5662.7118 ms ±0.2891  matched=11
+    Latt-IBEKS   mean=   4.2681 ms ±0.0129  matched=11
 
   ── N = 5,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 00f026ff3c49d9a3...
-    BVCRSA       mean=1458.2237 ms ±0.3776  matched=8
-    Trinity      mean=2453.4200 ms ±0.4413  matched=1582
-    VC-KASE      mean=  12.2357 ms ±0.0295  matched=62
-    ABSE-Range   mean=27602.7407 ms ±5.5543  matched=62
-    Latt-IBEKS   mean=  14.1682 ms ±0.0367  matched=62
+     Genesis: 001dc55c240b6d49...
+    BVCRSA       mean=1661.6507 ms ±0.1548  matched=8
+    Trinity      mean=45808.6946 ms ±24.1037  matched=62
+    VC-KASE      mean=5928.9862 ms ±0.3789  matched=224
+    ABSE-Range   mean=28531.4260 ms ±0.7810  matched=62
+    Latt-IBEKS   mean=  23.3019 ms ±0.3326  matched=62
 
   ── N = 10,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 002e7605a9b7b4b2...
-    BVCRSA       mean=3563.9422 ms ±0.4234  matched=8
-    Trinity      mean=4884.7614 ms ±0.5928  matched=3059
-    VC-KASE      mean=  24.8167 ms ±0.0690  matched=123
-    ABSE-Range   mean=55186.8705 ms ±10.4674  matched=123
-    Latt-IBEKS   mean=  28.1885 ms ±0.1121  matched=123
+     Genesis: 003fa5ae9c948683...
+    BVCRSA       mean=4062.4547 ms ±0.2721  matched=8
+    Trinity      mean=88497.7280 ms ±17.6906  matched=123
+    VC-KASE      mean=11854.1099 ms ±0.4155  matched=480
+    ABSE-Range   mean=58800.8581 ms ±1.1498  matched=123
+    Latt-IBEKS   mean=  54.9008 ms ±0.8731  matched=123
 
   ── N = 20,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 005a69570bf978e8...
-    BVCRSA       mean=7573.2142 ms ±0.6967  matched=8
-    Trinity      mean=8994.0137 ms ±1.8273  matched=6156
-    VC-KASE      mean=  52.1272 ms ±0.1276  matched=307
+     Genesis: 00e420fa12c7168f...
+    BVCRSA       mean=8624.1687 ms ±0.4349  matched=8
+    Trinity      mean=178952.8751 ms ±24.0521  matched=307
+    VC-KASE      mean=23712.4962 ms ±0.6948  matched=986
     ABSE-Range   SKIPPED — O(N) scan intractable above 10,000
-    Latt-IBEKS   mean=  61.7604 ms ±0.0711  matched=307
+    Latt-IBEKS   mean= 123.1447 ms ±0.3495  matched=307
 
   ── N = 50,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 00bd7a898e4c2fa0...
-    BVCRSA       mean=18095.0966 ms ±1.1254  matched=8
-    Trinity      mean=21606.8882 ms ±6.3836  matched=15319
-    VC-KASE      ERROR base is not invertible for the given modulus
+     Genesis: 000316bb9f8bce2f...
+    BVCRSA       mean=20617.1127 ms ±0.5395  matched=8
+    Trinity      mean=443042.9451 ms ±261.0525  matched=734
+    VC-KASE      mean=59259.6422 ms ±1.8005  matched=2423
     ABSE-Range   SKIPPED — O(N) scan intractable above 10,000
-    Latt-IBEKS   mean= 156.5617 ms ±0.0952  matched=734
+    Latt-IBEKS   mean= 317.3093 ms ±0.2141  matched=734
 
   ── N = 100,000 ──
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 0044cf1e961cbcf9...
-    BVCRSA       mean=36604.2938 ms ±3.2847  matched=8
-    Trinity      mean=44213.8337 ms ±11.2082  matched=30682
-    VC-KASE      ERROR base is not invertible for the given modulus
+     Genesis: 001406986342b9f0...
+    BVCRSA       mean=41674.1831 ms ±1.6225  matched=8
+    Trinity      mean=891587.2849 ms ±384.4695  matched=1497
+    VC-KASE      mean=118526.5472 ms ±3.6643  matched=4940
     ABSE-Range   SKIPPED — O(N) scan intractable above 10,000
-    Latt-IBEKS   mean= 312.6072 ms ±0.1237  matched=1497
+    Latt-IBEKS   mean= 631.8554 ms ±0.1081  matched=1496
 
 ──────────────────────────────────────────────────────────────────────
   2c: query time vs dimensions (N=10,000)
 ──────────────────────────────────────────────────────────────────────
   ⛓️  Blockchain Edge Node initialized (simulated mode)
-     Genesis: 00789e8a0898ea69...
+     Genesis: 005d99f94027e21c...
 
   ── d = 1 ──
-    BVCRSA       mean=2588.5108 ms ±0.5345
-    VC-KASE      mean=  27.2790 ms ±0.0462
-    Latt-IBEKS   mean=   8.9811 ms ±0.0290
+    BVCRSA       mean=2947.1257 ms ±0.2037
+    VC-KASE      mean=11871.6009 ms ±0.9519
+    Latt-IBEKS   mean=  61.7404 ms ±0.6624
 
   ── d = 2 ──
-    BVCRSA       mean=2700.2923 ms ±0.3826
-    VC-KASE      mean=  27.7029 ms ±0.0369
-    Latt-IBEKS   mean=   8.9527 ms ±0.0226
+    BVCRSA       mean=3072.2659 ms ±0.2128
+    VC-KASE      mean=12439.4031 ms ±0.4246
+    Latt-IBEKS   mean=  60.2273 ms ±0.6355
 
   ── d = 3 ──
-    BVCRSA       mean=2833.6444 ms ±0.3376
-    VC-KASE      mean=  27.6556 ms ±0.0218
-    Latt-IBEKS   mean=   8.9209 ms ±0.0239
+    BVCRSA       mean=3224.3832 ms ±0.2573
+    VC-KASE      mean=12439.4303 ms ±0.3476
+    Latt-IBEKS   mean=  63.6187 ms ±0.4308
 
   ── d = 4 ──
-    BVCRSA       mean=2893.0154 ms ±0.4736
-    VC-KASE      mean=  28.0227 ms ±0.1131
-    Latt-IBEKS   mean=   8.9882 ms ±0.0655
+    BVCRSA       mean=3290.8690 ms ±0.2510
+    VC-KASE      mean=12438.5117 ms ±0.5950
+    Latt-IBEKS   mean=  62.1338 ms ±0.5964
 
   ── d = 5 ──
-    BVCRSA       mean=2905.4364 ms ±0.3681
-    VC-KASE      mean=  27.8479 ms ±0.0293
-    Latt-IBEKS   mean=   8.8990 ms ±0.0266
+    BVCRSA       mean=3305.4517 ms ±0.2667
+    VC-KASE      mean=12439.9958 ms ±1.3373
+    Latt-IBEKS   mean=  59.2322 ms ±0.9837
 
-[+] 65 rows -> /home/ubuntu/bvcrsa/CSV/exp02_query_processing.csv
+[+] 67 rows -> /home/ubuntu/bvcrsa/CSV/exp02_query_processing.csv
 [+] figure -> /home/ubuntu/bvcrsa/Figures/exp02_query_vs_range.svg
 [+] figure -> /home/ubuntu/bvcrsa/Figures/exp02_query_vs_N.svg
 [+] figure -> /home/ubuntu/bvcrsa/Figures/exp02_query_vs_d.svg
 
-  O(N log N) extrapolation  (fitted c = 2.467e-02 ms)
-    N=   1,000,000  projected  491615.67 ms
-    N=  10,000,000  projected 5735516.17 ms
+  O(N log N) extrapolation  (fitted c = 2.810e-02 ms)
+    N=   1,000,000  projected  560010.42 ms
+    N=  10,000,000  projected 6533454.95 ms

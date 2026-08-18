@@ -1,31 +1,31 @@
 ======================================================================
   Experiment 10 — Primitive Microbench
-  host=ip-172-31-15-107  python=3.12.3
+  host=ip-172-31-12-27  python=3.12.3
   aws=ec2-<PUBLIC-IP>.<region>.compute.amazonaws.com
 ======================================================================
 
   ABSE backend: py_arkworks_bls12381  (BLS12-381)
   NOTE: the manuscript claims py_ecc over BN128. If this line says BLS12-381, the paper's text is wrong (see SKILL.md).
-    bilinear pairing                      1.009795 ms  ±0.005102  (sd=0.036816)
-    ABSE.Test                             2.482265 ms  ±0.006321  (sd=0.045611)
-    ABSE.TokenGen                         0.700718 ms  ±0.004767  (sd=0.034399)
-    Merkle verify (1 leaf)                0.008050 ms  ±0.000181  (sd=0.001303)
-    SHA-256                               0.000417 ms  ±0.000004  (sd=0.000031)
-    HMAC-SHA256                           0.001410 ms  ±0.000005  (sd=0.000036)
-    bitmap AND (100,000 bits)             0.001835 ms  ±0.001518  (sd=0.010953)
-    bitmap AND + popcount                 0.309839 ms  ±0.002182  (sd=0.015740)
-    EC-ElGamal encrypt                    1.692000 ms  ±0.016400  (sd=0.059167)
-    EC-ElGamal add                        0.012909 ms  ±0.000210  (sd=0.001516)
-    threshold decrypt                    24.484811 ms  ±0.058530  (sd=0.133548)
+    bilinear pairing                      1.066512 ms  ±0.004319  (sd=0.031165)
+    ABSE.Test                             2.613025 ms  ±0.005121  (sd=0.036948)
+    ABSE.TokenGen                         0.741459 ms  ±0.004421  (sd=0.031900)
+    Merkle verify (1 leaf)                0.008281 ms  ±0.000130  (sd=0.000935)
+    SHA-256                               0.000446 ms  ±0.000011  (sd=0.000079)
+    HMAC-SHA256                           0.001627 ms  ±0.000015  (sd=0.000106)
+    bitmap AND (100,000 bits)             0.001093 ms  ±0.000008  (sd=0.000060)
+    bitmap AND + popcount                 0.339297 ms  ±0.001921  (sd=0.013859)
+    EC-ElGamal encrypt                    1.761611 ms  ±0.014407  (sd=0.051976)
+    EC-ElGamal add                        0.013105 ms  ±0.000157  (sd=0.001135)
+    threshold decrypt                    25.988880 ms  ±0.044856  (sd=0.102348)
 
 [+] 11 rows -> /home/ubuntu/bvcrsa/CSV/exp10_primitive_microbench.csv
 
 ======================================================================
   RECONCILIATION — expected totals from primitive costs
 ======================================================================
-  Exp 01 trapdoor, d=5 (m_c=20 TokenGen):    14.0144 ms expected
-  Exp 02 query, exhaustive match N_u*m_c = 1000*4:  9929.0585 ms expected
+  Exp 01 trapdoor, d=5 (m_c=20 TokenGen):    14.8292 ms expected
+  Exp 02 query, exhaustive match N_u*m_c = 1000*4: 10452.1018 ms expected
      ^ if the measured query time is far below this, the harness is not doing exhaustive ABSE matching (R1-C4, R3-14)
-  Exp 04 verify, r=500 naive single proofs:     4.0251 ms expected (multiproof should be lower)
-  Exp 05/06 BVCRSA arm, 2 threshold decrypts:    48.9696 ms expected floor
+  Exp 04 verify, r=500 naive single proofs:     4.1405 ms expected (multiproof should be lower)
+  Exp 05/06 BVCRSA arm, 2 threshold decrypts:    51.9778 ms expected floor
 [+] figure -> /home/ubuntu/bvcrsa/Figures/exp10_primitive_microbench.svg
