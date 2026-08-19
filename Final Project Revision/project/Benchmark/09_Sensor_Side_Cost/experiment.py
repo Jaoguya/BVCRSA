@@ -119,7 +119,7 @@ def main():
         rec_key = hashlib.sha256(aes_key + rid).digest()
         if hasattr(abse, "encrypt"):
             steps.append(("ABSE_encapsulate_record_key", "public_key",
-                          lambda: abse.encrypt(rec_key.hex()[:32]), 192))
+                          lambda: abse.encrypt(rec_key.hex()[:32], "Analyst"), 192))
         else:
             print("    ABSE.Enc not exposed -- encapsulation step skipped")
     except Exception as e:
