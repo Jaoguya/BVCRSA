@@ -53,7 +53,7 @@ DEVICE_LABEL = os.environ.get("BVCRSA_DEVICE", platform.node())
 DEVICE_WATTS = float(os.environ.get("BVCRSA_DEVICE_WATTS", "0") or 0)
 WATTS_MEASURED = DEVICE_WATTS > 0
 
-RUNS = 50
+RUNS = 20
 WARMUP = 5
 SENSOR_ID = "RPI_01"
 MACHINE, KEYWORD, TSLOT = "Machine_01", "Temp", "2026-05-20 15:00:00"

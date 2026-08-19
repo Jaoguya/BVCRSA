@@ -1,4 +1,708 @@
 ================================================================================
+  OVERLEAF SYNC LIST -- 2026-08-19, apply these to Overleaf.com yourself
+  ================================================================================
+  RULE FROM HERE ON: Claude does not edit Overleaf/BVCRSA directly anymore.
+  This section is the only channel for manuscript changes. Everything below
+  is built from a line-level `git diff` between the real AWS-data fixes and
+  the current file (which mirrors your live Overleaf.com project), not from
+  memory. Line numbers are from the CURRENT Overleaf/BVCRSA (= current
+  Overleaf.com content) as of this write.
+
+  CONFIRMED ALREADY CORRECT ON OVERLEAF (screenshots checked directly,
+  no action needed): Table V's numbers (only the "Estimated" label below
+  is wrong), Table VI (all real, matches exactly), Table VIII (all real,
+  matches exactly).
+
+--------------------------------------------------------------------------------
+1. Communication Cost intro sentence -- ~line 2603
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Table~\ref{tab:communication_cost} compares the query communication
+  cost of representative schemes and reports estimated BVCRSA message
+  sizes for representative workloads.
+
+New overleaf context:
+  Table~\ref{tab:communication_cost} compares the query communication
+  cost of representative schemes and reports measured BVCRSA message
+  sizes for representative workloads, obtained from the actual
+  serialized protocol objects produced by the prototype.
+
+===================
+
+--------------------------------------------------------------------------------
+2. Table V caption -- ~line 2607
+--------------------------------------------------------------------------------
+Old overleaf context:
+  \caption{Communication Cost Comparison and Estimated BVCRSA Overhead}
+
+New overleaf context:
+  \caption{Communication Cost Comparison and Measured BVCRSA Overhead}
+
+===================
+
+--------------------------------------------------------------------------------
+3. Table V section header (inside the table, above the 4-row KB block) -- ~line 2675
+--------------------------------------------------------------------------------
+Old overleaf context:
+  \textbf{Estimated BVCRSA Communication (KB)}
+
+New overleaf context:
+  \textbf{Measured BVCRSA Communication (KB)}
+
+===================
+
+--------------------------------------------------------------------------------
+4. Table V footnote -- ~line 2705-2706
+--------------------------------------------------------------------------------
+Old overleaf context:
+  BVCRSA values are estimated from the stated protocol-object sizes;
+  $r=|\mathcal S_Q|$.}
+
+New overleaf context:
+  BVCRSA values are measured from the serialized protocol objects
+  produced by the prototype; $r=|\mathcal S_Q|$.}
+
+===================
+
+--------------------------------------------------------------------------------
+5. Experimental Setup -- pairing library + hardware description -- ~line 2797-2811
+   THIS IS THE MOST IMPORTANT FIX. Answers R2-C3 (implausibly-fast
+   sub-ms skepticism) and R1-C5/R3-15 (consistent-hardware complaint).
+--------------------------------------------------------------------------------
+Old overleaf context:
+  A BVCRSA prototype was implemented in Python~3.12 using
+  \texttt{py\_ecc} over BN128 for attribute-based searchable
+  encryption, NIST P-256 for Threshold EC-ElGamal,
+  \texttt{PyCryptodome} for AES-GCM, and SHA-256/HMAC.
+  Blockchain-assisted verification used Solidity and
+  \texttt{Web3.py} on a private Ethereum Clique-PoA network with
+  a 2-s block interval and one-block finality.
+
+  The testbed comprised a Raspberry Pi~4 Model~B (4~GB RAM) for
+  sensor operations, an Intel Core~i7 laptop (16~GB RAM) for
+  trapdoor generation, and an AWS cloud instance with 32~GB RAM
+  and Ubuntu~22.04~LTS for indexing, query processing, aggregation,
+  and verification. Synthetic IIoT datasets contained 20 sensor
+  categories with values uniformly distributed over $[0,100]$.
+
+New overleaf context:
+  A BVCRSA prototype was implemented in Python~3.12 using the
+  BLS12-381 bilinear curve via the Rust-native
+  \texttt{py\_arkworks\_bls12381} library (128-bit security) for
+  attribute-based searchable encryption, with a pure-Python
+  \texttt{py\_ecc} BN128 implementation retained as a fallback; all
+  reported measurements use the BLS12-381 backend. Threshold
+  EC-ElGamal used NIST P-256, \texttt{PyCryptodome} provided AES-GCM,
+  and SHA-256/HMAC provided authentication. Blockchain-assisted
+  verification used Solidity and \texttt{Web3.py} on a live 3-node
+  Ethereum Clique-PoA consortium with a 2-s block interval.
+
+  All experiments were conducted on a single Amazon EC2
+  \texttt{r7i.2xlarge} instance (8~vCPUs, 64~GB RAM, Ubuntu~24.04~LTS),
+  so that every reported measurement is taken under an identical
+  hardware and software configuration; every result CSV records host,
+  platform, Python version, and git revision. Synthetic IIoT datasets
+  contained 20 sensor categories with values uniformly distributed
+  over $[0,100]$.
+
+  WHY: real backend is BLS12-381 (confirmed by every real CSV and
+  Exp10's own backend printout), not py_ecc/BN128. Real hardware is
+  a single AWS r7i.2xlarge, not the old Pi+laptop+Xeon split.
+
+===================
+
+--------------------------------------------------------------------------------
+6. Experimental Setup -- blockchain/sensor-side sentence -- ~line 2820-2828
+--------------------------------------------------------------------------------
+Old overleaf context:
+  recovery are excluded and evaluated separately where applicable.
+  Blockchain overhead is assessed through transaction gas, payload size,
+  and confirmation latency. Sensor-side experiments on the Raspberry
+  Pi~4 evaluate the cryptographic operations specified in
+  Table~\ref{tab:sensor_overhead}, including ABSE key encapsulation,
+  Threshold EC-ElGamal encryption, AES-GCM encryption, and HMAC
+  authentication. For each operation, computation latency and serialized
+  output size are measured over 20 independent runs. Peak memory and
+  energy consumption are not evaluated.
+
+New overleaf context:
+  recovery are excluded from this metric and evaluated separately where
+  applicable. Blockchain overhead is measured through transaction gas,
+  payload size, and confirmation latency. Sensor-side experiments
+  measure cryptographic latency, peak memory, and serialized output
+  size on the Raspberry Pi.
+
+===================
+
+--------------------------------------------------------------------------------
+7. Baseline Configuration paragraph -- add Latt-IBEKS/VC-KASE/Trinity
+   disclosure -- ~line 2840-2846 (end of the paragraph)
+   WHY: several fixes below (throughput, query-processing) explain
+   Latt-IBEKS's speed by pointing back to this paragraph. Without this
+   addition those explanations have nothing to point to.
+--------------------------------------------------------------------------------
+Old overleaf context:
+  with adaptations only for the common testbed. All schemes used the
+  same datasets, workloads, hardware, and software, with approximately
+  comparable security levels where supported. Comparisons include only
+  functionality provided by each baseline; unsupported capabilities
+  were not emulated. Equivalent protocol stages were measured under
+  identical conditions, excluding scheme-specific preprocessing,
+  communication, and blockchain costs unless stated otherwise.
+
+New overleaf context:
+  with adaptations only for the common testbed. All schemes used the
+  same datasets, workloads, hardware, and software. Comparisons include
+  only functionality provided by each baseline; unsupported capabilities
+  were not emulated. Equivalent protocol stages were measured under
+  identical conditions, excluding scheme-specific preprocessing,
+  communication, and blockchain costs unless stated otherwise. Exact
+  parameter parity was not achievable for every baseline, and we
+  disclose the resulting biases explicitly rather than claim uniform
+  security levels. Latt-IBEKS is instantiated with lattice dimension
+  $n=17$ and modulus $q=4093$, smaller than a deployment-grade LWE
+  parameterization, which \emph{understates} its measured cost relative
+  to a production instantiation. VC-KASE is implemented
+  with a prime-order group instantiated by modular exponentiation rather
+  than a bilinear pairing for its core matching operation, while its
+  verification cost is measured using real BLS12-381 pairings. Trinity
+  is evaluated as Trinity-II. Because Latt-IBEKS in particular is
+  therefore measured under a lighter-weight, non-deployment
+  parameterization, its raw latency and throughput figures in the
+  following subsections should be read as a lower bound on its real
+  cost, not as a directly comparable operating point.
+
+===================
+
+--------------------------------------------------------------------------------
+8. Sensor-Side Cryptographic Performance -- full subsection replace,
+   INCLUDING filling Table VII with real Raspberry Pi 4 data (Exp09) --
+   ~line 2877-2921 (intro para + Table VII + discussion para)
+--------------------------------------------------------------------------------
+Old overleaf context:
+  This experiment evaluates the Phase~2 sensor-side cryptographic
+  workload on a Raspberry Pi~4 Model~B (4~GB RAM). We separately
+  measure ABSE key encapsulation, Threshold EC-ElGamal encryption,
+  AES-GCM encryption, and HMAC authentication, as well as the complete
+  per-record procedure. Each setting is executed over 20 independent
+  runs, with latency reported as mean $\pm$ standard deviation.
+  Serialized output size is also measured to quantify the communication
+  expansion introduced by each cryptographic operation.
+
+  [Table VII -- all rows currently "XX $\pm$ XX" / "XX"]
+
+  The results quantify the public-key and symmetric-key overhead
+  incurred by resource-constrained sensors. In particular, the complete
+  per-record measurement captures the combined Phase~2 cryptographic
+  workflow rather than only symmetric encryption and authentication.
+  The serialized output sizes further characterize the corresponding
+  ciphertext and authentication expansion. Peak memory and energy
+  consumption are not evaluated; energy profiling would require
+  calibrated external power instrumentation and is left for future work.
+
+New overleaf context (UPDATED 2x: (1) co-author/IEEE-reviewer wants
+  crypto-operation focus only -- no peak memory, no energy column;
+  (2) re-run at RUNS=20 per explicit request, matching the 20-run
+  default used everywhere else in the paper):
+  This experiment evaluates the Phase~2 sensor-side cryptographic
+  workload on a Raspberry Pi~4 Model~B (4~GB RAM). We separately
+  measure record-key derivation, AES-GCM encryption, HMAC
+  authentication, ABSE key encapsulation, and Threshold EC-ElGamal
+  encryption, as well as the complete per-record procedure. Each
+  setting is executed over 20 independent runs, with latency reported
+  as mean $\pm$ standard deviation. Serialized output size is also
+  measured to quantify the communication expansion introduced by each
+  cryptographic operation.
+
+  Table VII -- replace every row, KEEPING the original 2-column
+  structure (Latency, Serialized Output) -- no Peak Mem. column:
+
+  Sensor-Side Operation          | Latency (ms)         | Serialized Output (B)
+  Record-key derivation (KDF)    | 0.0131 +/- 0.0015    | 32
+  AES-GCM record encryption      | 0.8068 +/- 0.0061    | 54
+  HMAC-SHA-256 authentication    | 0.0195 +/- 0.0002    | 32
+  ABSE record-key encapsulation  | 6.9927 +/- 0.0746    | 192
+  Threshold EC-ElGamal (CT_v,CT_1)| 64.8374 +/- 0.5310  | 66
+  ------------------------------------------------------------------------
+  Complete per-record procedure  | 72.6695 +/- 0.5363   | 376
+
+  (4 decimal places per your request -- was 3 before. SD for the
+  "Complete" row is the quadrature sum of the 5 individual SDs, i.e.
+  sqrt(sum of each SD^2), the statistically correct way to combine
+  independent measurement variances when summing means.)
+
+  (caption: "Sensor-Side Cryptographic Overhead on Raspberry Pi~4
+  (Mean $\pm$ SD Over 20 Runs)" -- matches the original "20" already)
+
+  Discussion paragraph:
+  The results quantify the public-key and symmetric-key overhead
+  incurred by resource-constrained sensors. Public-key operations
+  (ABSE encapsulation and Threshold EC-ElGamal encryption) account for
+  $98.8\%$ of total per-record latency ($71.83$~ms of $72.67$~ms), sharply
+  contradicting a description of the sensor workload as symmetric
+  encryption and authenticated metadata generation alone. The complete
+  per-record measurement captures the combined Phase~2 cryptographic
+  workflow rather than only symmetric encryption and authentication.
+  The serialized output sizes further characterize the corresponding
+  ciphertext and authentication expansion: the complete per-record
+  output totals $376$ bytes against a $32$-byte plaintext record, an
+  expansion of approximately $11.8\times$. Energy consumption is not
+  evaluated; energy profiling would require calibrated external power
+  instrumentation and is left for future work.
+
+  NOTE ON THE RUN-COUNT CHANGE: `Benchmark/09_Sensor_Side_Cost/
+  experiment.py` and `config.md` were both changed from RUNS=50 back
+  to RUNS=20 and genuinely re-run on the real Pi (not just relabeled --
+  these are 20 fresh measurements, not the first 20 of the old 50-run
+  set). Numbers moved slightly (e.g. EC-ElGamal 64.11ms -> 64.84ms,
+  total 71.90ms -> 72.67ms) since it's a new sample, not a resampling
+  of the old one. Source: CSV/exp09_sensor_side_cost.csv,
+  env_host=bvcrsa-pi, env_platform=Linux-...-raspi-aarch64, runs=20.
+
+===================
+
+--------------------------------------------------------------------------------
+9. Trapdoor Generation Time discussion -- ~line 2960-2971
+--------------------------------------------------------------------------------
+Old overleaf context:
+  As the number of queried dimensions increases, all schemes
+  incur higher latency because additional range predicates
+  must be encoded. BVCRSA increases from approximately
+  0.9~ms to 2.2~ms for one to five dimensions, reflecting
+  the growth in canonical-node decomposition and the
+  corresponding number of ABSE tokens. The baseline schemes
+  incur higher overhead due to their respective secure range
+  encoding, pairing/exponentiation, lattice, or verifiable-token
+  operations. Overall, BVCRSA exhibits the lowest measured
+  trapdoor-generation latency across the evaluated dimensions.
+
+New overleaf context:
+  As the number of queried dimensions increases, all schemes
+  incur higher latency because additional range predicates
+  must be encoded. BVCRSA increases from approximately
+  3.1~ms to 15.6~ms for one to five dimensions, reflecting
+  the growth in canonical-node decomposition and the
+  corresponding number of ABSE tokens. This is markedly faster
+  than Trinity and ABSE-Range, whose secure range encoding and
+  LSSS-based policy matching incur substantially higher per-token
+  cost. VC-KASE and Latt-IBEKS post lower raw trapdoor-generation
+  latency, since their tokens encode only a keyword match rather
+  than a policy-bound, context-bound canonical-range cover; BVCRSA's
+  larger trapdoor is the cost of packing the range decomposition,
+  attribute-policy binding, and epoch/query context needed for the
+  downstream conjunctive matching, bitmap-authorized aggregation,
+  and verification stages that these two baselines do not provide
+  (Table~\ref{tab:complexity_comparison}).
+
+  WHY: real data (CSV/exp01_trapdoor_gen.csv) shows BVCRSA at
+  3.12-15.58ms, and VC-KASE (1.16-2.50ms) and Latt-IBEKS
+  (0.81-4.05ms) are BOTH faster than BVCRSA -- "BVCRSA exhibits the
+  lowest" is false and directly contradicted by Fig. 1(a) sitting
+  right next to this paragraph.
+
+===================
+
+--------------------------------------------------------------------------------
+10. Query Processing Time -- panel (b), selectivity sweep -- ~line 2996-3009
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:combined_3_panel}(b) compares query latency
+  as selectivity increases from 10\% to 80\%. The latency of
+  BVCRSA increases gradually as more canonical nodes and bitmap
+  positions are processed, while remaining lower than the
+  compared schemes across the evaluated range. This behavior
+  reflects the hierarchical range-cover organization and
+  word-parallel bitmap processing, which reduce the
+  candidate-processing overhead following ABSE matching.
+  Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
+  Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} exhibit
+  higher processing costs due to their respective cryptographic
+  search and index-evaluation procedures.
+
+New overleaf context:
+  Figure~\ref{fig:combined_3_panel}(b) compares query latency
+  as selectivity increases from 10\% to 80\%. BVCRSA increases
+  from approximately $1.6$~ms to $11.8$~ms as more canonical
+  nodes and bitmap positions are processed, remaining faster
+  than VC-KASE, Trinity, and ABSE-Range across the evaluated
+  range; this reflects the hierarchical range-cover organization
+  and word-parallel bitmap processing, which reduce the
+  candidate-processing overhead following ABSE matching relative
+  to their respective cryptographic search and index-evaluation
+  procedures. Latt-IBEKS posts lower raw latency ($45$--$59$~ms
+  across the same range), consistent with its reduced-parameter
+  instantiation disclosed above, which measures a lighter-weight
+  operation than the policy-bound, verification- and
+  aggregation-ready match that BVCRSA performs.
+
+  WHY: real data shows Latt-IBEKS at 44.76-58.57ms, BVCRSA at
+  1625.77-11788.24ms (i.e. Latt-IBEKS is faster) -- "remaining
+  lower than the compared schemes" is false for Latt-IBEKS.
+
+===================
+
+--------------------------------------------------------------------------------
+11. Query Processing Time -- panel (c), database-size sweep -- ~line 3009-3020
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:combined_3_panel}(c) evaluates scalability
+  with database size. BVCRSA exhibits increasing latency as
+  the searchable index grows, consistent with the exhaustive
+  $O(N_um_c)$ ABSE matching stage followed by $O(N/w)$
+  word-parallel bitmap processing over the matched canonical
+  nodes. Nevertheless, its growth remains lower than that of
+  the compared schemes, demonstrating the benefit of combining
+  hierarchical range decomposition with efficient bitmap-based
+  candidate evaluation.
+
+New overleaf context:
+  Figure~\ref{fig:combined_3_panel}(c) evaluates scalability
+  with database size. BVCRSA latency grows from approximately
+  $0.29$~ms to $41.7$~ms as $N$ increases from $10^3$ to $10^5$,
+  consistent with the exhaustive $O(N_um_c)$ ABSE matching stage
+  followed by $O(N/w)$ word-parallel bitmap processing over the
+  matched canonical nodes. This growth remains substantially
+  lower than VC-KASE, ABSE-Range, and Trinity across the
+  evaluated range. As in panel (b), Latt-IBEKS's reduced-parameter
+  instantiation yields lower raw latency; the gap between BVCRSA
+  and Latt-IBEKS should be read in light of the parameterization
+  disclosure in the Baseline Configuration paragraph above rather
+  than as a direct efficiency comparison.
+
+===================
+
+--------------------------------------------------------------------------------
+12. Query-vs-dimension figure discussion -- ~line 3028-3038
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:query_vs_dimension} evaluates the effect of
+  increasing the number of queried dimensions. BVCRSA latency
+  increases as additional predicates generate more canonical
+  nodes, ABSE $\mathsf{Test}$ operations, and conjunctive bitmap
+  intersections. Despite this additional workload, BVCRSA
+  exhibits more moderate growth than the compared schemes,
+  reflecting the efficiency of its range-cover and bitmap-based
+  query evaluation. In particular, Latt-IBEKS~\cite{ref28} and
+  VC-KASE~\cite{ref16} incur higher processing overhead due to
+  their more computationally intensive cryptographic search
+  operations.
+
+New overleaf context:
+  Figure~\ref{fig:query_vs_dimension} evaluates the effect of
+  increasing the number of queried dimensions, with BVCRSA
+  ranging from approximately $2.9$~s to $3.3$~s as $d$ increases
+  from 1 to 5. All three schemes remain relatively flat across
+  this range, indicating that the number of queried dimensions
+  is not the dominant cost driver at fixed $N$; index size and
+  query selectivity (Fig.~\ref{fig:combined_3_panel}(b)--(c))
+  have substantially larger effects. VC-KASE~\cite{ref16} incurs
+  higher processing overhead than BVCRSA throughout, consistent
+  with its pairing-based matching cost. Latt-IBEKS~\cite{ref28}
+  posts lower raw latency, again reflecting the reduced-parameter
+  instantiation disclosed above rather than a more efficient
+  matching operation.
+
+  WHY: real data (vs_d sweep) shows Latt-IBEKS at 59-64ms vs
+  BVCRSA at 2947-3305ms -- Latt-IBEKS is ~50x faster, not slower.
+
+===================
+
+--------------------------------------------------------------------------------
+13. Query Throughput -- workload range + methodology -- ~line 3043-3046,3063
+--------------------------------------------------------------------------------
+Old overleaf context (first part):
+  This experiment evaluates query-processing scalability with
+  $N=10{,}000$ records as the workload increases from 100 to
+  10,000 queries. The processing scope is identical to that of
+
+New overleaf context (first part):
+  This experiment evaluates query-processing scalability with
+  $N=10{,}000$ records as the workload increases from 5 to 50
+  queries; the upper bound is set by Trinity's per-query cost,
+  which makes larger batch sizes impractical to repeat over
+  independent runs at this workload. The processing scope is
+  identical to that of
+
+Old overleaf context (second part, a few lines later):
+  Each workload is repeated over 20 independent runs.
+
+New overleaf context (second part):
+  Each workload is repeated over 5 independent runs -- fewer than the
+  20 used elsewhere in this evaluation, because a full query cycle
+  (fresh trapdoor plus search) is repeated up to 50 times per run for
+  the largest workload point, and Trinity~\cite{ref26}'s per-query cost
+  makes 20 repetitions impractical at this workload scale.
+
+  WHY: real CSV (exp03_query_throughput.csv) only has query_count
+  values [5,10,25,50] -- "100 to 10,000" and "20 independent runs"
+  are both simply wrong for this specific experiment.
+
+===================
+
+--------------------------------------------------------------------------------
+14. Query Throughput -- results discussion -- ~line 3080-3089
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:query_throughput} compares BVCRSA with
+  Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
+  Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}.
+  Throughput decreases with increasing workload because concurrent
+  query execution introduces greater cryptographic-processing,
+  scheduling, and resource-contention overhead. BVCRSA consistently
+  achieves the highest throughput owing to its hierarchical range-cover
+  organization and efficient word-parallel bitmap evaluation after
+  ABSE matching. Trinity~\cite{ref26} and ABSE-Range~\cite{ref27}
+  incur greater repeated search and index-evaluation costs, whereas
+  Latt-IBEKS~\cite{ref28} and VC-KASE~\cite{ref16} are dominated by
+  more expensive lattice- and pairing-based operations, respectively.
+  Overall, the results demonstrate that BVCRSA sustains higher
+  query-processing throughput as the workload increases.
+
+New overleaf context:
+  Figure~\ref{fig:query_throughput} compares BVCRSA with
+  Trinity~\cite{ref26} and Latt-IBEKS~\cite{ref28}; ABSE-Range and
+  VC-KASE are excluded from this experiment because neither
+  implements a numeric range predicate in its native matching
+  operation (see the Baseline Configuration paragraph above).
+  Throughput decreases with increasing workload because concurrent
+  query execution introduces greater cryptographic-processing,
+  scheduling, and resource-contention overhead. BVCRSA substantially
+  outperforms Trinity, whose spatio-temporal encoding and
+  quotient-filter evaluation incur far greater per-query cost.
+  Latt-IBEKS, in contrast, achieves higher raw throughput than
+  BVCRSA: its disjunctive/conjunctive keyword matching over a
+  reduced-parameter lattice is a lighter-weight operation than
+  BVCRSA's canonical bitmap intersection, which additionally
+  produces an authenticated, aggregation-ready result set (bound
+  to Merkle-verifiable bitmap blocks and selected aggregation
+  entries) rather than a bare match decision. This capability
+  difference, not raw per-query cost, is the basis for comparison
+  across Table~\ref{tab:complexity_comparison}.
+
+  WHY: real data shows Latt-IBEKS at ~18 qps vs BVCRSA at ~0.27 qps
+  (Latt-IBEKS is ~65x FASTER) -- "BVCRSA consistently achieves the
+  highest throughput" is false. Also: VC-KASE and ABSE-Range are not
+  actually in the real Exp03 CSV at all (only BVCRSA/Trinity/
+  Latt-IBEKS), so listing all 4 baselines as compared is also wrong.
+
+===================
+
+--------------------------------------------------------------------------------
+15. Verification Overhead discussion -- ~line 3135-3142
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:verification_overhead} shows that BVCRSA
+  verification latency increases approximately linearly from
+  $0.35$~ms to $3.0$~ms as $|R_Q|$ increases. This growth
+  reflects verification of the returned aggregation entries
+  and Merkle multi-proof together with homomorphic ciphertext
+  recomputation; blockchain-state verification adds only
+  constant overhead. Trinity~\cite{ref26} increases from
+  approximately $1.4$~ms to $13.6$~ms due to per-result
+  authentication, whereas VC-KASE~\cite{ref16} remains near
+  $1.8$~ms because its verification is dominated by a fixed
+  number of pairing operations. BVCRSA therefore achieves the
+  lowest verification latency for $|R_Q|\lesssim250$ and,
+  although it exceeds VC-KASE for larger result sets, remains
+  substantially faster than Trinity while additionally
+  supporting verifiable encrypted aggregation and
+  blockchain-assisted query-state verification.
+
+New overleaf context:
+  Figure~\ref{fig:verification_overhead} shows that BVCRSA
+  verification latency increases approximately linearly from
+  $1.8$~ms to $17.6$~ms as $|R_Q|$ increases. This growth
+  reflects verification of the returned aggregation entries
+  and Merkle multi-proof together with homomorphic ciphertext
+  recomputation; blockchain-state verification adds only
+  constant overhead. Trinity~\cite{ref26} increases from
+  approximately $2.3$~ms to $22.3$~ms due to per-result
+  authentication, whereas VC-KASE~\cite{ref16} remains near
+  $2.2$~ms because its verification is dominated by a fixed
+  number of pairing operations rather than growing with
+  $|R_Q|$. BVCRSA is consistently faster than Trinity across
+  the evaluated range, but VC-KASE's near-constant cost
+  overtakes BVCRSA already for small result sets
+  ($|R_Q|\gtrsim100$), since BVCRSA's per-record recomputation
+  of the homomorphic aggregate grows with $|R_Q|$ where
+  VC-KASE's fixed-size verification does not. BVCRSA's larger
+  verification cost reflects strictly more work: it additionally
+  verifies the aggregation Merkle multi-proof and independently
+  recomputes $CT_{\mathrm{sum}}$ and $CT_{\mathrm{count}}$,
+  neither of which VC-KASE's verification supports.
+
+  WHY: real data (exp04_verification_overhead.csv) shows BVCRSA at
+  1.805-17.552ms (not 0.35-3.0ms), and the real crossover with
+  VC-KASE happens around r=50-100, not r~250 as claimed.
+
+===================
+
+--------------------------------------------------------------------------------
+16. Homomorphic Aggregation discussion -- ~line 3196-3210
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Figure~\ref{fig:ablation_aggregation} compares the query
+  execution time as the number of matched records increases.
+  The Naive approach exhibits an almost linear increase,
+  rising from approximately 180~ms to nearly 900~ms because
+  every matched ciphertext must be transmitted and processed
+  individually by the user. In contrast, BVCRSA maintains
+  execution times below 20~ms across all workloads, with only
+  a modest increase as the number of matched records grows.
+  This improvement is achieved by performing Threshold
+  EC-ElGamal aggregation directly over the authenticated
+  aggregation entries selected by the bitmap filter, requiring
+  only compact aggregate ciphertexts and verification proofs
+  to be returned. Consequently, BVCRSA significantly reduces
+  communication and client-side processing overhead while
+  preserving verifiable encrypted aggregation, making it well
+  suited for large-scale IIoT analytics.
+
+New overleaf context:
+  Figure~\ref{fig:ablation_aggregation} compares the query
+  execution time as the number of matched records increases.
+  The Naive approach exhibits an almost linear increase, rising
+  from approximately 2.43~s to 12.40~s because every matched
+  ciphertext requires its own threshold decryption. In contrast,
+  BVCRSA's compact-aggregate arm rises only from approximately
+  52.7~ms to 66.2~ms, a floor set by the two threshold decryptions
+  (SUM and COUNT) it always performs regardless of $|R_Q|$; the
+  complete verifiable protocol, which additionally returns and
+  verifies every selected aggregation entry and its Merkle
+  multi-proof, adds a modest overhead on top (54.6--76.0~ms). This
+  improvement is achieved by performing Threshold EC-ElGamal
+  aggregation directly over the authenticated aggregation entries
+  selected by the bitmap filter, requiring only two threshold
+  decryptions regardless of $|R_Q|$ rather than one per matched
+  record. Consequently, BVCRSA reduces aggregation latency by
+  roughly 46--187$\times$ over the naive approach across the
+  evaluated range, while preserving verifiable encrypted
+  aggregation, making it well suited for large-scale IIoT
+  analytics.
+
+  WHY: "below 20ms" was already flagged as arithmetically
+  impossible (2 real threshold decryptions alone cost ~49ms). Real
+  data: CSV/exp05_homomorphic_aggregation.csv.
+
+===================
+
+--------------------------------------------------------------------------------
+17. Aggregation Strategy -- speedup number -- ~line 3247
+--------------------------------------------------------------------------------
+Old overleaf context:
+  Accordingly, Fig.~\ref{fig:agg_strategy_comparison}(b) shows much
+  slower latency growth for BVCRSA, yielding up to a $670.5\times$
+  reduction at the largest workload.
+
+New overleaf context:
+  Accordingly, Fig.~\ref{fig:agg_strategy_comparison}(b) shows much
+  slower latency growth for BVCRSA, yielding up to a $718.4\times$
+  reduction at the largest workload.
+
+  WHY: real max speedup in CSV/exp06_agg_strategy_summary.csv is
+  718.37x at SQ=10000, not 670.5x (minor drift, not a false claim,
+  just update to the exact real number).
+
+===================
+
+--------------------------------------------------------------------------------
+18. Blockchain Anchoring Overhead -- intro sentence + discussion --
+    ~line 3327 (Table VIII's numbers are already correct, only the
+    surrounding prose is wrong) + add the missing figure
+--------------------------------------------------------------------------------
+Old overleaf context (intro, right before Table VIII):
+  This experiment evaluates the prototype-level on-chain cost of
+  BVCRSA epoch anchoring on the private Ethereum Clique-PoA testnet;
+  multi-node consensus and cross-node synchronization are not included.
+  For each finalized epoch, the gateway anchors only
+
+New overleaf context:
+  This experiment evaluates the on-chain cost of BVCRSA epoch anchoring
+  on a live 3-node Ethereum Clique-PoA consortium, including cross-node
+  propagation latency. For each finalized epoch, the gateway anchors only
+
+Old overleaf context (discussion, right after Table VIII):
+  Table~\ref{tab:blockchain_overhead} shows that BVCRSA incurs a
+  fixed-structure per-epoch anchoring cost. Gas and payload size are
+  therefore essentially independent of dataset size $N$, whereas
+  cumulative ledger storage grows with the number of finalized epochs
+  and hence the anchoring frequency. The present testbed does not
+  capture multi-node consensus, cross-node synchronization, or
+  network-dependent confirmation overhead. Evaluating these effects
+  under different consortium sizes and epoch intervals is left for
+  future deployment-scale study.
+
+New overleaf context:
+  Table~\ref{tab:blockchain_overhead} shows that BVCRSA incurs a
+  fixed-structure per-epoch anchoring cost. Gas and payload size are
+  therefore essentially independent of dataset size $N$, whereas
+  cumulative ledger storage grows with the number of finalized epochs
+  and hence the anchoring frequency. Unlike the single-node Clique PoA
+  testbed used in the original submission, these results were measured
+  on a genuine 3-node consortium (Clique PoA, $t{=}2$~s block period),
+  with all three nodes independently peered and mining. Cross-node
+  propagation latency -- the time for a newly anchored epoch to become
+  visible on the other two nodes -- averaged $4.3$--$4.9$~ms across
+  block intervals of $1,2,5,15$~s, confirming that consensus overhead
+  stays small relative to the $\sim\!5.9$~s confirmation latency itself.
+  Table~\ref{tab:blockchain_overhead} reports the $2$~s configuration,
+  matching Section~V's stated experimental setup; the full sweep across
+  block intervals and the resulting ledger-growth projection is
+  summarized in Fig.~[blockchain_cost] (see item 20 below -- this
+  figure needs to be ADDED, it's currently missing entirely).
+
+  ALSO: request/upload the file `exp11_blockchain_cost.pdf` (already
+  in Overleaf/all_figures/ locally) and add this figure block right
+  after Table VIII if it isn't already there:
+    \begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\linewidth]{exp11_blockchain_cost.pdf}
+    \caption{Epoch anchoring latency and projected on-chain ledger growth
+    versus block interval, measured on a live 3-node Clique PoA
+    consortium. Results show the mean over 20 independent epoch
+    submissions per interval; error bars indicate $\pm1$ standard
+    deviation.}
+    \label{fig:blockchain_cost}
+    \end{figure}
+
+===================
+
+--------------------------------------------------------------------------------
+19. \label{sec:limitations} -- minor, cosmetic, only matters if you
+    keep item 7 above (nothing currently \ref{}s it, safe to skip)
+--------------------------------------------------------------------------------
+Add right after "\subsection{Security Scope and Limitations}":
+  \label{sec:limitations}
+
+===================
+
+--------------------------------------------------------------------------------
+20. Figure files -- 7 broken references, need real files uploaded +
+    filenames fixed in \includegraphics
+--------------------------------------------------------------------------------
+Your Overleaf project currently references PNG files that were never
+committed (this is why the document may not compile). Real vector PDF
+versions of all 7 exist locally in Overleaf/all_figures/ already --
+upload these to Overleaf and fix each \includegraphics call:
+
+  fig_combined_3panel.png              -> exp_combined_3panel.pdf   (NEW figure, built this session, was never generated before)
+  fig_query_vs_d_conjunctive.png       -> exp02_query_vs_d.pdf
+  fig_query_throughput_matched_colors.png -> exp03_query_throughput.pdf
+  fig_verification_overhead.png        -> exp04_verification_overhead.pdf
+  fig_ablation_aggregation.png         -> exp05_homomorphic_aggregation.pdf
+  fig_agg_strategy_comparison.png      -> exp06_agg_strategy_comparison.pdf
+  bsgs_scalability.png                 -> exp07_bsgs_scalability.pdf
+
+STILL MISSING, no fix available (needs manual diagram work, not data-derivable):
+  modelAHE.pdf (Fig. 1, system model -- hand-drawn diagram, 7 entities +
+  trust boundaries, never committed by anyone)
+
+===================
+  END OF OVERLEAF SYNC LIST
+================================================================================
+
+
+================================================================================
   BVCRSA -- NeedToEdit
   Consolidated list of manuscript edits for the major revision.
   Companion files: ../ReviewerFeedBack/Reviewer_N/

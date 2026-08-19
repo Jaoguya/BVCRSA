@@ -65,7 +65,7 @@ R1-C4 and R3-17.
 ## Statistics
 
 ```
-RUNS = 50    WARMUP = 5
+RUNS = 20    WARMUP = 5
 ```
 
 ## Output
