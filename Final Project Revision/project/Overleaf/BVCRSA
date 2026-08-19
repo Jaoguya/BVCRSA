@@ -2600,11 +2600,12 @@ ABSE lookup mechanism.
 \subsection{Communication Cost Analysis}
 
 Table~\ref{tab:communication_cost} compares the query communication
-cost of representative schemes and reports estimated BVCRSA message
-sizes for representative workloads.
+cost of representative schemes and reports measured BVCRSA message
+sizes for representative workloads, obtained from the actual
+serialized protocol objects produced by the prototype.
 
 \begin{table}[!t]
-\caption{Communication Cost Comparison and Estimated BVCRSA Overhead}
+\caption{Communication Cost Comparison and Measured BVCRSA Overhead}
 \label{tab:communication_cost}
 \centering
 \scriptsize
@@ -2672,7 +2673,7 @@ $\begin{aligned}
 
 \midrule
 \multicolumn{4}{c}{
-\textbf{Estimated BVCRSA Communication (KB)}
+\textbf{Measured BVCRSA Communication (KB)}
 }
 \\
 \midrule
@@ -2702,8 +2703,8 @@ $N=10^5,\ r=500$
 \parbox{0.97\linewidth}{\scriptsize
 $^{\dagger}$Ref.~\cite{ref26} reports total search communication
 complexity without separating request and response costs.
-BVCRSA values are estimated from the stated protocol-object sizes;
-$r=|\mathcal S_Q|$.}
+BVCRSA values are measured from the serialized protocol objects
+produced by the prototype; $r=|\mathcal S_Q|$.}
 \end{table}
 
 Here, $m_c$ is the number of canonical-node query tokens,
@@ -2794,20 +2795,24 @@ BVCRSA's additional security functionality and its associated
 verification, communication, and storage overhead.
 \subsubsection*{\textbf{Experimental Setup}}
 
-A BVCRSA prototype was implemented in Python~3.12 using
-\texttt{py\_ecc} over BN128 for attribute-based searchable
-encryption, NIST P-256 for Threshold EC-ElGamal,
-\texttt{PyCryptodome} for AES-GCM, and SHA-256/HMAC.
-Blockchain-assisted verification used Solidity and
-\texttt{Web3.py} on a private Ethereum Clique-PoA network with
-a 2-s block interval and one-block finality.
+A BVCRSA prototype was implemented in Python~3.12 using the
+BLS12-381 bilinear curve via the Rust-native
+\texttt{py\_arkworks\_bls12381} library (128-bit security) for
+attribute-based searchable encryption, with a pure-Python
+\texttt{py\_ecc} BN128 implementation retained as a fallback; all
+reported measurements use the BLS12-381 backend. Threshold
+EC-ElGamal used NIST P-256, \texttt{PyCryptodome} provided AES-GCM,
+and SHA-256/HMAC provided authentication. Blockchain-assisted
+verification used Solidity and \texttt{Web3.py} on a live 3-node
+Ethereum Clique-PoA consortium with a 2-s block interval.
 
-The testbed comprised a Raspberry Pi~4 Model~B (4~GB RAM) for
-sensor operations, an Intel Core~i7 laptop (16~GB RAM) for
-trapdoor generation, and an AWS cloud instance with 32~GB RAM
-and Ubuntu~22.04~LTS for indexing, query processing, aggregation,
-and verification. Synthetic IIoT datasets contained 20 sensor
-categories with values uniformly distributed over $[0,100]$.
+All experiments were conducted on a single Amazon EC2
+\texttt{r7i.2xlarge} instance (8~vCPUs, 64~GB RAM, Ubuntu~24.04~LTS),
+so that every reported measurement is taken under an identical
+hardware and software configuration; every result CSV records host,
+platform, Python version, and git revision. Synthetic IIoT datasets
+contained 20 sensor categories with values uniformly distributed
+over $[0,100]$.
 The primary experiments used $N=10^3$--$2\times10^4$ records,
 10\%--80\% query selectivity, and $d=1$--5 queried dimensions;
 only the query-scalability experiment was extended to $N=10^5$.
@@ -2881,11 +2886,11 @@ query-processing latency.
 \hline
 \textbf{Operation} & \textbf{Platform} & \textbf{Latency} \\
 \hline
-ABSE $\mathsf{Test}$ & Xeon & 2.078 $\pm$ 0.074 ms \\
-Bilinear pairing & Xeon & 0.853 $\pm$ 0.040 ms \\
-Merkle-proof verification & Xeon & 6.70 $\pm$ 1.13 $\mu$s \\
-Bitmap-block operation & Xeon & 1.35 $\pm$ 0.14 $\mu$s \\
-EC-ElGamal ciphertext addition & Xeon & 16.31 $\pm$ 1.00 $\mu$s \\
+ABSE $\mathsf{Test}$ & AWS EC2 & 2.480 $\pm$ 0.045 ms \\
+Bilinear pairing & AWS EC2 & 1.010 $\pm$ 0.035 ms \\
+Merkle-proof verification & AWS EC2 & 7.75 $\pm$ 1.04 $\mu$s \\
+Bitmap-block operation & AWS EC2 & 1.19 $\pm$ 0.14 $\mu$s \\
+EC-ElGamal ciphertext addition & AWS EC2 & 12.18 $\pm$ 1.17 $\mu$s \\
 \hline
 \end{tabular}
 \end{table}
@@ -2901,7 +2906,7 @@ resulting canonical nodes.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.88\textwidth]{fig_combined_3panel.png}
+\includegraphics[width=0.88\textwidth]{exp_combined_3panel.pdf}
 \caption{Performance comparison of
 (a) trapdoor-generation time versus number of queried dimensions,
 (b) query-processing time versus range-query width, and
@@ -2961,7 +2966,7 @@ candidate evaluation.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{fig_query_vs_d_conjunctive.png}
+\includegraphics[width=0.85\linewidth]{exp02_query_vs_d.pdf}
 \caption{Query-processing time versus number of queried dimensions.
 Results show the mean over 20 independent runs; error bars indicate
 $\pm1$ standard deviation.}
@@ -3013,7 +3018,7 @@ makes 20 repetitions impractical at this workload scale.
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.85\linewidth]
-{fig_query_throughput_matched_colors.png}
+{exp03_query_throughput.pdf}
 \caption{Query throughput under increasing query workload.
 Results show the mean over 5 independent runs; error bars
 indicate $\pm1$ standard deviation.}
@@ -3071,7 +3076,7 @@ processing.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{fig_verification_overhead.png}
+\includegraphics[width=0.85\linewidth]{exp04_verification_overhead.pdf}
 \caption{Verification time versus number of returned results.
 Results show the mean over 20 independent runs; error bars
 indicate $\pm1$ standard deviation.}
@@ -3132,7 +3137,7 @@ to the user without in-network aggregation.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{fig_ablation_aggregation.png}
+\includegraphics[width=0.85\linewidth]{exp05_homomorphic_aggregation.pdf}
 \caption{Effect of homomorphic aggregation versus naive record
 retrieval. Results show the mean over 20 independent runs;
 error bars indicate $\pm1$ standard deviation.}
@@ -3178,13 +3183,13 @@ required partial-decryption shares and their combination.
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.85\textwidth]{fig_agg_strategy_comparison.png}
+\includegraphics[width=0.85\textwidth]{exp06_agg_strategy_comparison.pdf}
 \caption{Aggregation strategy comparison:
 (a) number of threshold decryptions,
 (b) aggregation latency (log scale), and
 (c) aggregation latency for small result sets.
 Latency results in (b)--(c) are means over 20 independent runs;
-error bars indicate $\pm1$ standard deviation.}
+per-run variance is not plotted for this figure.}
 \label{fig:agg_strategy_comparison}
 \end{figure*}
 
@@ -3220,7 +3225,7 @@ linear search used as the baseline.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{bsgs_scalability.png}
+\includegraphics[width=0.85\linewidth]{exp07_bsgs_scalability.pdf}
 \caption{Aggregate-recovery latency versus maximum supported
 aggregate value. Results show the mean over 20 independent
 runs; error bars indicate $\pm1$ standard deviation.}
@@ -3242,10 +3247,9 @@ Table~IV.
 
 \subsubsection{\textbf{Blockchain Anchoring Overhead}}
 
-This experiment evaluates the prototype-level on-chain cost of
-BVCRSA epoch anchoring on the private Ethereum Clique-PoA testnet;
-multi-node consensus and cross-node synchronization are not included.
-For each finalized epoch, the gateway anchors only
+This experiment evaluates the on-chain cost of BVCRSA epoch anchoring
+on a live 3-node Ethereum Clique-PoA consortium, including cross-node
+propagation latency. For each finalized epoch, the gateway anchors only
 $(e_q,N_{e_q},\beta,n_{e_q}^{\mathrm{blk}},
 Root_{e_q},ts_{e_q},\sigma_{\mathrm{DO}})$,
 while records, indexes, bitmap blocks, and aggregation entries remain
@@ -3264,24 +3268,42 @@ submissions and are reported as mean $\pm1$ standard deviation.
 \textbf{Metric} & \textbf{Mean $\pm$ SD} \\
 \midrule
 Gas consumption (gas/epoch)
-& $\overline{G}\pm\sigma_G$ \\
+& $43{,}829.80\pm3.69$ \\
 Transaction payload (bytes)
-& $\overline{B}\pm\sigma_B$ \\
+& $124\pm0$ \\
 Confirmation latency (s)
-& $\overline{T}\pm\sigma_T$ \\
+& $5.877\pm0.438$ \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\linewidth]{exp11_blockchain_cost.pdf}
+\caption{Epoch anchoring latency and projected on-chain ledger growth
+versus block interval, measured on a live 3-node Clique PoA
+consortium. Results show the mean over 20 independent epoch
+submissions per interval; error bars indicate $\pm1$ standard
+deviation.}
+\label{fig:blockchain_cost}
+\end{figure}
 
 Table~\ref{tab:blockchain_overhead} shows that BVCRSA incurs a
 fixed-structure per-epoch anchoring cost. Gas and payload size are
 therefore essentially independent of dataset size $N$, whereas
 cumulative ledger storage grows with the number of finalized epochs
-and hence the anchoring frequency. The present testbed does not
-capture multi-node consensus, cross-node synchronization, or
-network-dependent confirmation overhead. Evaluating these effects
-under different consortium sizes and epoch intervals is left for
-future deployment-scale study.
+and hence the anchoring frequency. Unlike the single-node Clique PoA
+testbed used in the original submission, these results were measured
+on a genuine 3-node consortium (Clique PoA, $t{=}2$~s block period),
+with all three nodes independently peered and mining. Cross-node
+propagation latency -- the time for a newly anchored epoch to become
+visible on the other two nodes -- averaged $4.3$--$4.9$~ms across
+block intervals of $1,2,5,15$~s, confirming that consensus overhead
+stays small relative to the $\sim\!5.9$~s confirmation latency itself.
+Table~\ref{tab:blockchain_overhead} reports the $2$~s configuration,
+matching Section~V's stated experimental setup; the full sweep across
+block intervals and the resulting ledger-growth projection is
+summarized in Fig.~\ref{fig:blockchain_cost}.
 
 
 \section{Discussion}

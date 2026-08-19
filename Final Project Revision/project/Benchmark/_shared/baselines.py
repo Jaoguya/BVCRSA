@@ -9,11 +9,15 @@ scheme instead of re-declaring it.
 Schemes provided
 ----------------
   BVCRSAAlgo      -- our scheme (TA -> blockchain_edge -> bitmap index)
-  TrinityAlgo     -- Trinity-I (ref26), via trinity.py
-  ABSERangeAlgo   -- ABSE-Range (ref27), via Attribute-based.py
-  VCKASEAlgo      -- VC-KASE (ref16), key-aggregate searchable encryption
-  LatticeIBEKSAlgo-- Latt-IBEKS (ref28), lattice/LWE searchable encryption
-                     incl. the Scheme-II conjunctive patch
+  TrinityAlgo     -- Trinity-II (ref26), forward-secure + verified variant,
+                     via trinity.py. Trinity-I also exists in trinity.py
+                     but is not benchmarked.
+  ABSERangeAlgo   -- ABSE-ERM (ref27, "ABSE-Range" internally), via
+                     Attribute-based.py
+  VCKASEAlgo      -- VC-KASE (ref16), key-aggregate searchable encryption,
+                     via vckase.py
+  LatticeIBEKSAlgo-- Latt-IBEKS (ref28), via latt_ibeks.py, incl. the
+                     Scheme-II conjunctive patch
 
 Data source
 -----------
@@ -28,29 +32,30 @@ sample list, not just the mean, so callers can compute std-dev / CI.
 
 PARITY NOTE -- read before publishing any comparative figure
 ------------------------------------------------------------
-Every baseline's query() previously performed NO cryptographic work: VC-KASE
-and Latt-IBEKS compared `ct["value"]` in plaintext, Trinity compared Hilbert
-integers, and ABSE-Range counted any document whose search() did not raise.
-The published comparison was therefore plaintext-scan versus plaintext-scan.
+Every baseline's query() now performs a real per-document match test, and
+the MATCH DECISION (not just the timing) is real for all four -- this was
+not always true; earlier passes measured real cryptographic cost but still
+took the match decision from ground truth. Current state, verified by
+direct testing against ground truth with zero mismatches:
 
-Each baseline now performs its real per-document search operation, so the
-TIMING is a genuine measurement of that scheme's cryptographic cost:
+    VC-KASE      real BLS12-381 pairing-based field-keyword test
+                 (vckase.py), plus real Extract/Sign/Verify
+    Latt-IBEKS   real MP12 gadget-trapdoor sampling + real LWE
+                 dual-Regev keyword/range test (latt_ibeks.py) --
+                 see that module's docstring for two documented
+                 substitutions from the paper's exact cited algorithms,
+                 and a real forgeability issue in the trapdoor sampler
+                 that a fix attempt this session did not resolve
+    Trinity      Trinity-II: real HMAC-based state-aware token matching
+                 (forward-secure) + real verify_tag check
+    ABSE-Range   real BLS12-381 pairing keyword + range match
+                 (canonical dyadic range-cover), via Attribute-based.py
 
-    VC-KASE      pairing evaluation per ciphertext
-    Latt-IBEKS   trapdoor/ciphertext inner product over Z_q per ciphertext
-    Trinity      Hilbert range filter then SHVE.Match per candidate
-    ABSE-Range   real BLS12-381 pairings via Attribute-based.py search()
-
-The MATCH DECISION for VC-KASE, Latt-IBEKS and Trinity is still taken from
-ground truth, because these are reimplementations from published
-descriptions rather than complete working deployments -- their synthetic
-parameters do not decrypt to a correct result set. This is favourable to the
-baselines (they never pay for a mismatch) and MUST be disclosed in the paper;
-see ImplementFIX/03_Text_Fixes.md section F11, which contains the disclosure
-paragraph. R3-16 asks for exactly this.
-
-BVCRSA, by contrast, derives its match set from real ABSE.Test tag agreement
-with no ground-truth assistance.
+BVCRSA derives its match set from real ABSE.Test tag agreement, unchanged
+throughout. Remaining known caveats for all schemes (selectivity/query-
+scope differences, Trinity's benchmark-query-shape cost inflation, the
+Latt-IBEKS trapdoor forgeability, index-pruning asymmetry) are tracked in
+MD/SKILL.md section 11 and Overleaf/NeedToEdit_Baselines.txt, not here.
 """
 
 import os
@@ -390,7 +395,7 @@ class VCKASEAlgo:
     S, which Extract() now takes as an explicit argument instead.
 
     No numeric range predicate: ref16 is exact conjunctive keyword-FIELD
-    search, confirmed against the source paper (ImplementFIX/09). `a, b`
+    search, confirmed against the source paper. `a, b`
     in trap_gen are accepted only for interface parity with the other
     baselines and never reach the crypto -- callers that need range
     selectivity should not include VC-KASE in those sweeps (see
@@ -497,8 +502,7 @@ class TrinityAlgo:
 
     def setup(self, kw_count=2):
         # Trinity-II (forward-secure, verified) -- the paper's actual
-        # contribution, not the Trinity-I stepping stone. See
-        # ImplementFIX/10 Phase 2 / Decision A.
+        # contribution, not the Trinity-I stepping stone.
         self.scheme = TrinityII()
         self.scheme.setup(256, 8, 10)
 
@@ -568,8 +572,8 @@ class TrinityAlgo:
 class ABSERangeAlgo:
     """ABSE-ERM (ref27). See Attribute-based.py's module docstring for
     the canonical-cover range mechanism that replaces the paper's 0/1
-    coding, and ImplementFIX/09/10 for why: the previous version never
-    passed a numeric value into encrypt() at all (rec["value"] was
+    coding. The previous version never passed a numeric value into
+    encrypt() at all (rec["value"] was
     passed positionally as the *file payload*, not a range-searchable
     field), and trap_gen() smuggled the query bounds in as plain dict
     keys that never reached the crypto. search()'s pairing outputs were

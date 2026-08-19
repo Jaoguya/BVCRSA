@@ -1,9 +1,9 @@
 experiment,quantity,decomposition,predicted_ms,measured_ms,ratio_measured_over_predicted,verdict
-Exp 01,"trapdoor, d=1 (m_c=4 TokenGen)",4xabse_tokengen(0.5722ms),2.2886,2.8592,1.2493,consistent
-Exp 01,"trapdoor, d=5 (m_c=20 TokenGen)",20xabse_tokengen(0.5722ms),11.4432,,,NOT YET MEASURED
-Exp 04,"verify r=500, naive single proofs (multiproof must beat this)",500xmerkle_verify_single(0.0067ms) + 1xhmac_sha256(0.0013ms),3.3487,15.4389,4.6105,far above — unmodelled cost
-Exp 05,BVCRSA-Compact floor: 2 threshold decrypts,2xthreshold_decrypt(29.2812ms),58.5625,52.6577,0.8992,consistent
-Exp 05,"Naive, r=100: one threshold decrypt per record",100xthreshold_decrypt(29.2812ms),2928.1233,2426.7025,0.8288,consistent
-Exp 06,BVCRSA arm: 2 threshold decrypts + |S_Q|-1 EC adds (|S_Q|=1000),2xthreshold_decrypt(29.2812ms) + 999xecelgamal_add(0.0163ms),74.8575,80.6280,1.0771,consistent
-Exp 06,"Conventional arm, |S_Q|=1000: one threshold decrypt per record",1000xthreshold_decrypt(29.2812ms),29281.2333,25373.8523,0.8666,consistent
-Exp 02,"BVCRSA query at N=1,000: N x 0.16 pairings/doc x ABSE.Test",160xabse_test(2.0779ms),332.4605,,,NOT YET MEASURED
+Exp 01,"trapdoor, d=1 (m_c=4 TokenGen)",4xabse_tokengen(0.8269ms),3.3075,3.1170,0.9424,consistent
+Exp 01,"trapdoor, d=5 (m_c=20 TokenGen)",20xabse_tokengen(0.8269ms),16.5375,15.5818,0.9422,consistent
+Exp 04,"verify r=500, naive single proofs (multiproof must beat this)",500xmerkle_verify_single(0.0097ms) + 1xhmac_sha256(0.0019ms),4.8465,17.6416,3.6400,far above — unmodelled cost
+Exp 05,BVCRSA-Compact floor: 2 threshold decrypts,2xthreshold_decrypt(42.1872ms),84.3743,52.6577,0.6241,consistent
+Exp 05,"Naive, r=100: one threshold decrypt per record",100xthreshold_decrypt(42.1872ms),4218.7173,2426.7025,0.5752,consistent
+Exp 06,BVCRSA arm: 2 threshold decrypts + |S_Q|-1 EC adds (|S_Q|=1000),2xthreshold_decrypt(42.1872ms) + 999xecelgamal_add(0.0238ms),108.1524,80.6280,0.7455,consistent
+Exp 06,"Conventional arm, |S_Q|=1000: one threshold decrypt per record",1000xthreshold_decrypt(42.1872ms),42187.1729,25373.8523,0.6015,consistent
+Exp 02,"BVCRSA query at N=1,000: N x 0.16 pairings/doc x ABSE.Test",160xabse_test(3.0031ms),480.5010,291.7442,0.6072,consistent

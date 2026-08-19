@@ -1,7 +1,7 @@
 ================================================================================
   BVCRSA -- NeedToEdit
   Consolidated list of manuscript edits for the major revision.
-  Companion files: ../ImplementFIX/01..06, ../ReviewerFeedBack/Reviewer_N/
+  Companion files: ../ReviewerFeedBack/Reviewer_N/
 ================================================================================
 
 HOW TO USE
@@ -122,30 +122,90 @@ Every figure caption must state its own count and statistic.
 
 ================================================================================
   PART B -- PROTOCOL AND SECURITY  [ALL BLOCKING]
-  Full LaTeX in ../ImplementFIX/01_Protocol_Fixes.md and 02_Proof_Fixes.md
+  Drafted LaTeX for each item is inlined below (recovered from commit
+  33ee254, since the old ImplementFIX/ drafts are no longer on disk).
 ================================================================================
 
 B1. Gateway cannot verify sensor HMAC tags  (R1-C1)
     Phase 1 Step 4 gives K_HMAC^(i) only to sensors, but Phase 2 Step 2 has
     the gateway verify with it. The step cannot execute.
     FIX: provision the gateway with a master K_HMAC^mas and derive per-sensor
-    keys. Full LaTeX in ImplementFIX/01 section F5.
+    keys via KDF. Patch Eq. gateway-keys, sensor-keys, credential-distribution,
+    secret-state as follows:
+
+      K_sel <-$ {0,1}^lambda,  K_HMAC^mas <-$ {0,1}^lambda,
+      (pk_DO, sk_DO) <- DS.KeyGen(1^lambda)
+
+      K_HMAC^(i) = KDF(K_HMAC^mas, ID_i || "hmac")
+
+      Edge Gateway secret state: (K_sel, sk_DO, K_HMAC^mas)
+
+    State explicitly: "The gateway derives K_HMAC^(i) for packet
+    authentication but never obtains K_AES^(i), which is derived from the
+    independent master key K_master retained by the TA. It can therefore
+    verify sensor packets but cannot decrypt record contents."
     CONSEQUENCE: the gateway can then forge sensor packets. Theorem 1 must
-    narrow its adversary class to exclude the gateway.
+    narrow its adversary class to exclude the gateway (hold against the
+    cloud and external adversaries, not the gateway).
 
 B2. ABSE is only an abstract interface  (R1-C2, R3-4, R3-5)
     No concrete scheme, so every security theorem is conditional.
-    FIX: full instantiation written in ImplementFIX/01 section F4 -- Setup,
-    KeyGen, Index/Token/Test, Enc/Dec, DBDH assumption, collusion argument.
+    FIX -- describe an AND-gate policy scheme over a bilinear group
+    (p, G1, GT, e, g), matching what abse_fast.py actually implements:
+
+      Setup: alpha,beta <-$ Z_p; PP=(g, g^beta, e(g,g)^alpha), MSK=(alpha,beta)
+      KeyGen(A subset U): r <-$ Z_p;
+        SK_A = ( D = g^((alpha+r)/beta),
+                 {D_a = g^r . H_g(a)^r_a,  D'_a = g^r_a}_{a in A} )
+        (per-user r is what gives collusion resistance)
+      Index/Token/Test: standard pairing-based keyword search, with epoch
+        e_c and query id qid bound into the hash input so tokens are
+        randomized and non-transferable across queries/epochs. Test
+        evaluates a pairing equation that holds iff w=w' AND A |= P.
+      Enc/Dec: same construction applied to a random G_T element, key
+        derived via KDF.
+
+    Security: DBDH in (G1, GT); keyword privacy against the cloud in the
+    random-oracle model under DBDH; collusion resistance from independence
+    of per-user r.
+
+    Then state the implementation choice (also fixes A1):
+      "The prototype instantiates the pairing group with BLS12-381 via
+       py_arkworks_bls12381 (128-bit security), with a pure-Python BN128
+       fallback through py_ecc. All reported measurements use the BLS12-381
+       backend."
     Must be checked against abse_fast.py before submission.
 
 B3. Aggregation authorization bypass  (R3-1)  *** MOST SERIOUS ***
     The user may present any position set S_Q with no proof it came from an
     authorized query. Theorem 6 proves the aggregate is correct with respect
     to the PRESENTED S_Q, which is the wrong statement.
-    FIX: new Phase 4 Step 4 (cloud recomputes B_Q and rejects S_Q not a
-    subset), plus a new Theorem (Aggregation Authorization).
-    LaTeX in ImplementFIX/01 F1 and 02.
+
+    FIX -- new Phase 4 Step 4, inserted before aggregation:
+      The cloud recomputes the conjunctive query bitmap from the matched
+      node set U_Q it already holds from Step 1:
+        B_Q^hat = AND_{j=1..d} OR_{u in U_Q ^ C_j} B_u~ XOR PRG(F(K_u,.), N_eq)
+      and accepts the aggregation request only if
+        S_Q subseteq Supp(B_Q^hat)  AND  |S_Q| <= N_eq
+      aborting otherwise.
+
+    KEY-AVAILABILITY PROBLEM: the cloud does not hold K_u (by design). Two
+    resolutions:
+      (a1) check on MASKED blocks only -- verifies each pos in S_Q falls in
+           a block of a matched node, not that the bit is set. Weaker:
+           catches cross-node theft, not within-node.
+      (a2) user forwards recovered K_u for MATCHED nodes only, with the
+           request -- full check, but reveals matched-node bitmap contents
+           to the cloud (must be added to the leakage profile L_BVCRSA).
+    RECOMMENDED: (a2) + B5 (TDA-side authorization check, folds together).
+    The added leakage (matched-node bitmap contents) is no worse than what
+    the cloud already learns (node identity, result cardinality, access
+    pattern) -- state that in the threat model rather than hoping nobody
+    notices.
+
+    Add a new theorem (Aggregation Authorization): a user cannot obtain an
+    aggregate over any position outside the bitmap generated by its own
+    policy-authorized trapdoor, given the Step 4 check above.
 
     *** RELATED IMPLEMENTATION BUG, found 2026-08-16 ***
     user_client.py line 21 does  self.Ks = secrets["Ks"]  -- the code hands
@@ -170,17 +230,75 @@ B6. Completeness claim overstated  (R7-C1, R7-C2, R3-9)
     qualification. VQSA only proves the cloud returned what the GATEWAY
     committed.
     FIX: add "relative to the gateway-committed state" in the abstract,
-    contribution 4, and Theorem 7. Add the scope remark from ImplementFIX/01 F6.
+    contribution 4, and Theorem 7. Then add this scope remark to the threat
+    model, making the boundary unmissable:
+
+      "Remark (Scope of Completeness). All completeness guarantees are
+       stated relative to the state committed by the Edge Gateway. VQSA
+       detects omission, modification, substitution, and replay by the
+       cloud, but cannot detect fabricated canonical-node memberships or
+       falsified bitmap contents produced by the gateway prior to
+       anchoring. A gateway that commits an incorrect index is outside the
+       threat model. Extending detection to gateway misbehaviour -- for
+       example by requiring sensors to co-sign their canonical-node
+       metadata so that fabricated memberships fail signature
+       verification -- is left as future work."
+
+    Worth including even as future work: it shows the limitation was
+    understood rather than discovered by the reviewer.
 
 B7. Theorem 2 needs a simulator argument  (R5-3, R3-6)
-    FIX: real-or-simulated indistinguishability with explicit hybrids, plus a
-    remark conceding that U_Q reveals the queried range to canonical-node
-    granularity. Full proof sketch in ImplementFIX/02.
+    FIX: real-or-simulated indistinguishability with explicit hybrids.
+    Statement: there exists a PPT simulator S such that for every PPT
+    adversary A and query sequence Q, the real and ideal (simulated-from-
+    leakage) executions are indistinguishable up to negl(lambda), given
+    ABSE token indistinguishability under DBDH and PRG security.
+
+    Proof sketch: S is given only L_BVCRSA(Q) = (matched node sets, |S_Q|
+    per query, dimension counts, access pattern, query pattern).
+      H0: the real execution.
+      H1: replace every token Tok_{j,i} with a uniformly random group
+          element of the same form. H0 ~c H1 by ABSE token
+          indistinguishability under DBDH (reduction uses (e_q, qid) as
+          context binding so tokens for distinct queries are independently
+          randomized).
+      H2: replace every protected block B~_{u,b} for non-matched u with a
+          uniformly random bitstring of the same length. H1 ~c H2 by PRG
+          security, since K_u for non-matched nodes is never recovered by A.
+      H2 is computable from L_BVCRSA(Q) alone -- set S := H2.
+
+    Then add this remark conceding range-semantic leakage:
+      "Theorem 2 guarantees only that nothing beyond L_BVCRSA is revealed;
+       it does not claim the queried interval is hidden. Because canonical
+       nodes correspond to fixed dyadic intervals, the matched set U_Q
+       bounds [a_j,b_j] to within the granularity of one canonical node.
+       Finer canonical partitions reduce this leakage at the cost of a
+       larger cover size m_c and correspondingly larger trapdoors."
+    The honest Theorem 2 is weaker than the current one -- weaker and
+    provable beats stronger and hand-waved.
 
 B8. Leakage understated  (R3-6, R3-7, R3-8)
-    ADD two subsections: user-side leakage (a user reconstructs the FULL
-    bitmap of every authorized node, learning membership beyond its query)
-    and gateway-side leakage. Text in ImplementFIX/03 F17.
+    ADD two subsections to the leakage profile:
+
+      "User-Side Leakage. An authorized user reconstructs the complete
+       bitmap of every canonical node its attributes authorize, not merely
+       the positions matching its query range. It therefore learns record
+       membership for all positions of those nodes, which reveals
+       approximate numerical values to within the granularity of one
+       canonical interval, including for records outside its query result.
+       This leakage is inherent to node-granular bitmap authorization;
+       reducing it requires finer canonical partitioning, which increases
+       the cover size m_c and hence trapdoor size and query cost.
+
+       Gateway-Side Leakage. The Edge Gateway observes sensor identities,
+       update times, searchable dimensions, canonical-node memberships, and
+       bitmap positions in plaintext. Confidentiality of record contents
+       and aggregate values is preserved -- the gateway holds neither
+       K_AES^(i), the ABSE master secret, nor any threshold share -- but
+       membership and metadata are not hidden from it."
+
+    Also soften the query-privacy claim wherever it appears unqualified,
+    per the Theorem 2 remark above (B7).
 
 B9. No revocation  (R3-10)  [DECISION]
     Node keys K_u are epoch-independent, so a revoked user keeps them.
@@ -189,8 +307,27 @@ B9. No revocation  (R3-10)  [DECISION]
     overhead claim (R3-11). Recommend declaring the limitation.
 
 B10. No update/delete workflow  (R7-C3)
-     ADD the invalidation procedure from ImplementFIX/03 F18, including the
-     remark that version binding does not achieve retroactive forgetting.
+     ADD to Section III or the Discussion:
+
+       "Record Invalidation. Although BVCRSA targets append-dominant
+        workloads, expired or faulty readings must be invalidatable. To
+        invalidate record i, the gateway (i) clears B_u[pos_i] <- 0 for
+        every u in Path(u_{i,j}); (ii) increments nu_{u,b} for each
+        affected block, forcing re-masking under a fresh PRG stream;
+        (iii) marks the aggregation entry A_i as tombstoned so it is
+        excluded from subsequent aggregation; and (iv) recomputes the
+        affected sigma_{u,b}^bmp, Root_u^bmp, sigma_u^idx, and Root_{e_q}.
+        Only blocks containing pos_i are re-masked; all others retain
+        their existing version and commitment."
+
+     Plus the remark that version binding does not achieve retroactive
+     forgetting:
+       "Version binding prevents an adversary from presenting a stale
+        block as current, but a user that previously reconstructed
+        B_{u,b} at version nu-1 retains that plaintext. Invalidation
+        therefore prevents future disclosure and future aggregation, not
+        retroactive forgetting by users already authorized at the time of
+        ingestion."
 
 
 ================================================================================
@@ -250,7 +387,11 @@ is genuine. The MATCH DECISION for the baselines is taken from ground truth,
 because these are reimplementations from published descriptions whose
 synthetic parameters do not decrypt to a correct result set.
 
-THIS MUST BE DISCLOSED. Add to Section V (full text in ImplementFIX/03 F11):
+THIS MUST BE DISCLOSED. Add to Section V:
+
+  NOTE (2026-08-18): the Trinity-I claim below is now stale -- baselines.py
+  was switched to TrinityII() this session. Reconcile against
+  Overleaf/NeedToEdit_Baselines.txt before using this paragraph verbatim.
 
   "For reproducibility we note the following baseline implementation choices.
    Trinity is implemented as Trinity-I. VC-KASE is implemented with a
@@ -396,18 +537,76 @@ D5. Add error bars (95% CI) to every curve -- R7-C4, R2-C2.
 ================================================================================
 
 E1. Adopted vs novel components  (R2-C1)
-    Add ONE explicit paragraph at the end of Section I. Full text in
-    ImplementFIX/03 F10. The reviewer says this "would take five minutes".
+    Add ONE explicit paragraph at the end of Section I, immediately before
+    the contributions list. The reviewer says this "would take five minutes":
+
+      "For clarity, we state explicitly which components are adopted and
+       which are new. BVCRSA reuses the following existing primitives
+       without modification: attribute-based searchable encryption, lifted
+       EC-ElGamal with (t,n) Shamir threshold decryption and
+       Chaum-Pedersen DLEQ proofs, Merkle commitment trees, and
+       permissioned blockchain anchoring. The novel contributions are
+       (i) the authenticated hierarchical range-cover index, which
+       combines minimal canonical interval decomposition with versioned,
+       block-partitioned protected bitmaps supporting cross-dimensional
+       evaluation; (ii) the bitmap-aware encrypted aggregation mechanism,
+       which binds each authenticated bitmap position to a unique
+       threshold aggregation entry; and (iii) Verifiable Query State
+       Anchoring (VQSA), which authenticates index roots, bitmap
+       parameters, and aggregation state through signed
+       blockchain-anchored Merkle commitments."
 
 E2. Measurement-scope disclaimer  (R5-2)
-    State at the start of Section V what is inside the timed region, that
-    network and blockchain are excluded and reported separately, and that
-    baselines differ in functionality. Text in ImplementFIX/03 F11.
+    State at the start of Section V what is inside the timed region:
+
+      "Scope of Reported Measurements. Reported latencies measure
+       cryptographic computation only. Network transmission and blockchain
+       interaction are excluded from the timed region and are instead
+       evaluated separately: end-to-end communication volume in the
+       communication-cost subsection and blockchain anchoring cost in the
+       blockchain-cost subsection. Each experiment states precisely which
+       operations lie inside its measured region.
+
+       The compared schemes do not offer identical functionality. No
+       baseline simultaneously supports attribute-based search,
+       conjunctive range queries, encrypted aggregation, and authenticated
+       verification; comparisons are therefore restricted to shared
+       functionality. BVCRSA additionally performs authenticated
+       verification and aggregation binding, which the baselines omit,
+       and this overhead is included in all reported BVCRSA measurements."
+
+    NOTE: the original draft continued with a baseline-implementation-choice
+    paragraph naming Trinity-I/prime-order VC-KASE/small-parameter
+    Latt-IBEKS -- that is superseded by the real fixes in
+    Overleaf/NeedToEdit_Baselines.txt; use that file's disclosure text
+    instead of drafting a new one from scratch.
 
 E3. Bitmap reconstruction as one procedure  (R5-1)
-    The mechanism is currently spread across four equation blocks. Add the
-    self-contained algorithm from ImplementFIX/03 F12, ending with the
-    statement that K_sel is never disclosed to users.
+    The mechanism is currently spread across four equation blocks. Add one
+    algorithm collecting it end to end, in Section III after Phase 4 Step 2:
+
+      Gateway (Phase 2):
+        K_u = F(K_sel, D_j || u)
+        C_u^K = ABSE.Enc(PP, K_u, P_u, e_q)
+        for each block b of node u:
+          B~_{u,b} = B_{u,b} XOR PRG(F(K_u, b || nu_{u,b}), |B_{u,b}|)
+          sigma_{u,b}^bmp = H(BMP || D_j || u || b || nu_{u,b} || B~_{u,b})
+        Root_u^bmp = MerkleRoot(Sort_b{sigma_{u,b}^bmp})
+
+      User (Phase 4):
+        receive C_u^K, {B~_{u,b}, nu_{u,b}}, pi^bmp for each u in U_Q
+        K_u = ABSE.Dec(SK_A, C_u^K, e_q)          -- succeeds iff A |= P_u
+        verify each sigma_{u,b}^bmp against Root_u^bmp, and Root_u^bmp
+          against the anchored Root_{e_q}; abort on failure
+        verify n_b = n_{e_q}^blk                   -- detects truncation
+        for each block b: B_{u,b} = B~_{u,b} XOR PRG(F(K_u, b||nu_{u,b}), |B_{u,b}|)
+        B_Q = AND_{j=1..d} OR_{u in U_Q ^ C_j} B_u
+
+    Follow with the sentence carrying the actual security property:
+      "The gateway selector key K_sel is never disclosed to users; a user
+       obtains only those node keys K_u whose policies P_u its attribute
+       set satisfies, and can therefore reconstruct only the bitmaps of
+       canonical nodes it is authorized to access."
     *** See B3 -- the code currently violates this. Fix both. ***
 
 E4. Notation sweep  (R4-1)

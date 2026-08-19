@@ -28,8 +28,8 @@ from baselines import (ALL_SCHEMES, CONJUNCTIVE_SCHEMES, KEYWORD_POOL,
 from harness import Experiment, new_figure, save_figure, style
 
 # VC-KASE (ref16) has no numeric range predicate in the source paper --
-# confirmed against the paper text (ImplementFIX/09): it's exact
-# conjunctive keyword-FIELD search only. Plotting it against range % or
+# confirmed against the paper text: it's exact conjunctive keyword-FIELD
+# search only. Plotting it against range % or
 # N under a fixed range is not meaningful -- its real cost and match
 # count don't depend on range width at all, since the range bounds never
 # reach the crypto (see VCKASEAlgo.trap_gen in baselines.py). Dropped
@@ -207,7 +207,7 @@ def plot(rows):
             st = style(name)
             ax.errorbar([p[xkey] for p in pts],
                         [p["mean_ms"] for p in pts],
-                        yerr=[p["ci95_ms"] for p in pts],
+                        yerr=[p["stdev_ms"] for p in pts],
                         label=name, capsize=3, color=st["color"],
                         marker=st["marker"], linestyle=st["ls"])
         if logx:

@@ -29,12 +29,11 @@ smoke tests. Both machines are just terminals into the same EC2 instance.
 
 | | |
 |---|---|
-| Repo restructured | `Benchmark/` (11 experiments + `_shared/`), `CSV/`, `Figures/`, `MD/`, `ImplementFIX/`, `Overleaf/`, `ReviewerFeedBack/`, `AWS/` |
+| Repo restructured | `Benchmark/` (11 experiments + `_shared/`), `CSV/`, `Figures/`, `MD/`, `Overleaf/`, `ReviewerFeedBack/`, `AWS/` |
 | Python environment | 3.14.7 on the PC, all deps installed, **BLS12-381 backend live** |
 | `test_pipeline.py` | passes all five phases end to end |
 | Reviewer analysis | `ReviewerFeedBack/Reviewer_1..7/Commend.md`, each comment with a fix |
-| Paper edit list | `Overleaf/NeedToEdit.txt` — parts A–G |
-| Fix proposals | `ImplementFIX/01..06` — protocol, proofs, text, figures, response letter, benchmark validity |
+| Paper edit list | `Overleaf/NeedToEdit.txt` (original) and `Overleaf/NeedToEdit_Baselines.txt` (baseline-fidelity session) — parts A–G |
 
 ### Bugs fixed (code)
 
@@ -205,26 +204,23 @@ The old harness never called `cloud_server.process_query()`, and its canonical
 nodes could never match the client's tags, so every reported "match" came from
 its own dictionary lookup.
 
-⚠️ **All four baselines were also plaintext scans.** They now perform real
-cryptographic work, but their match decisions still come from ground truth
-because they are reimplementations, not deployments. **This must be disclosed**
-— see `Overleaf/NeedToEdit.txt` part C2. Without that disclosure the
-"comparable security settings" claim is false.
-
-Full detail: `ImplementFIX/06_Benchmark_Validity.md`.
+⚠️ **All four baselines were also plaintext scans, historically** — since
+fixed. As of 2026-08-18 all four (Trinity, ABSE-Range/ABSE-ERM, VC-KASE,
+Latt-IBEKS) perform real cryptographic work *and* derive their match
+decision from that real cryptography, not ground truth — see
+`MD/SKILL.md §11` (D1-D9, L1-L7, F1-F6) for the full defect register and
+`Overleaf/NeedToEdit_Baselines.txt` for what still needs manuscript text
+to match. This section is left as a historical record of what the bug
+originally was; it is not the current state.
 
 ---
 
 ## 9. What to do first, in order
 
-1. Read `ImplementFIX/06_Benchmark_Validity.md` — it explains why the numbers moved.
-2. Decide Trinity (§7 item 1).
-3. Stand up the EC2 instance, follow §3 and §4.
-4. Run `AWS/run_all.sh` in tmux overnight.
-5. Pull results, compare against `ImplementFIX/06` expectations.
-6. Work `Overleaf/NeedToEdit.txt` parts A, B, E — **24 reviewer comments are
-   paper-only and need no compute at all.** That is the largest block of work
-   available while experiments run.
+This section described the original one-time transition to AWS-only
+execution; that transition, the AWS runs, and the baseline rebuild it
+anticipated are all long since complete. **For current status, read
+`MD/HANDOFF.md` first, then `MD/SKILL.md §10-11`.**
 
 ---
 
@@ -232,11 +228,11 @@ Full detail: `ImplementFIX/06_Benchmark_Validity.md`.
 
 | File | Contents |
 |---|---|
+| `MD/HANDOFF.md` | Current live status — read this first |
 | `MD/SKILL.md` | Full suite reference — folder rules, all 11 experiments, defect register |
 | `MD/RUN_LOCAL.md` | Running on the Windows PC |
 | `AWS/README.md` | Detailed AWS guide |
-| `Overleaf/NeedToEdit.txt` | Every manuscript edit, parts A–G |
-| `ImplementFIX/new fix propose` | Fix index, F1–F20 by priority |
-| `ImplementFIX/06_Benchmark_Validity.md` | Measured findings and their consequences |
+| `Overleaf/NeedToEdit.txt` | Original manuscript edit list, parts A–G (partially superseded — see `HANDOFF.md`) |
+| `Overleaf/NeedToEdit_Baselines.txt` | Baseline-fidelity session's manuscript edit list |
 | `ReviewerFeedBack/README.md` | Verdicts, convergence, work split |
 | `Benchmark/NN_*/config.md` | Per-experiment configuration and reviewer mapping |

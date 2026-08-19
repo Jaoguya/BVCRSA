@@ -186,7 +186,7 @@ def plot(rows):
         st = style(name)
         ax.errorbar([p["query_count"] for p in pts],
                     [p["mean_throughput_qps"] for p in pts],
-                    yerr=[p["ci95_qps"] for p in pts],
+                    yerr=[p["stdev_qps"] for p in pts],
                     label=name, capsize=3, color=st["color"],
                     marker=st["marker"], linestyle=st["ls"])
     ax.set_xscale("log")

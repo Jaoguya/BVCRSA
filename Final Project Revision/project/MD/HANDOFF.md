@@ -1,175 +1,118 @@
-# Handoff — live AWS run
+# Handoff — current state
 
-Written 2026-08-17. Read this first in a new session, then `SKILL.md`.
-
-> ## 🛑 The results this run produced are SUPERSEDED
->
-> These workers finished **2026-08-16 22:32**. `baselines.py`,
-> `vckase.py`, `latt_ibeks.py`, `trinity.py` and `Attribute-based.py`
-> were rewritten **2026-08-17 17:38**, *after* the run — so every
-> cross-scheme number below and in `logs/` came from the old fake
-> baselines. **Experiments 01–04 must be re-run** against the current
-> code; 05–08 are unaffected (they never import `baselines.py`).
->
-> Re-measured at N=1,000 with the real baselines, VC-KASE's query is
-> **410× slower** and Trinity's **35× slower** than this run reported.
-> See `SKILL.md` §10 fact 6. Do not cite anything from this run.
->
-> Also: a later local smoke run (N=300, d=1) **overwrote** W1's and W2's
-> `exp01`/`exp02` CSVs. Those AWS results exist only in `logs/` now.
+Written 2026-08-17, rewritten 2026-08-19 — the previous version described a
+run that finished and was fully superseded; nothing on this page was
+accurate anymore. Read this first in a new session, then `SKILL.md` §10-11
+for full detail.
 
 ---
 
-## What is running right now
+## Where things actually stand
 
-Three EC2 workers, launched **2026-08-16 18:26 UTC**, each in a detached
-`tmux` session named `bvcrsa`. They survive SSH disconnects, laptop shutdown,
-and the end of any Claude session.
+**Experiments 01–04**: real data, from a real AWS rerun against the current
+(real-crypto) baselines, completed 2026-08-18. All 3 crypto-benchmark
+workers used for that run are **stopped**. `CSV/exp0{1,2,3,4}_*.csv` and
+the matching `Figures/` are current and correct — `env_host` in each row
+confirms they came from the real workers, not a local smoke test.
 
-| Worker | Public IP | Queue | Projected |
-|---|---|---|---|
-| **W1** | `44.197.171.184` | Exp 10 → **Exp 02** | ~6.5 h |
-| **W2** | `98.92.182.127` | Exp 10 → **Exp 03** → **Exp 01** | ~3.3 h |
-| **W3** | `34.206.1.190` | Exp 10 → 04, 05, 06(+zoom,plot), 07, 08 | ~1 h |
+**Experiment 11 (Blockchain)**: real data, from a real 3-node AWS Clique
+PoA consortium, completed 2026-08-18. Those 3 instances are still up as
+of this writing (not yet stopped — check before assuming). Table VII and
+`Fig. blockchain_cost` in the manuscript are filled with this data.
+**Known gap**: only `node_count=3` was run; the paper's own `config.md`
+also specifies `{1,5}` as comparison points, never tested. See
+`SKILL.md §10` and `Overleaf/NeedToEdit_Baselines.txt` item 11 for a full
+skeptic pass on these numbers (submitter bias, non-independent trials
+across the interval sweep, an unverified gas-anomaly explanation).
 
-Instances: `r7i.2xlarge` (8 vCPU, 64 GiB), Ubuntu 24.04, Python 3.12.3,
-BLS12-381 via `py_arkworks_bls12381`, region `us-east-1`.
+**Experiments 05–08, 10**: unaffected by any of this session's baseline
+work (05-08 never import `baselines.py`; 10 was re-run 2026-08-18 anyway
+for fresh Table A/B reconciliation data). All current.
 
-Not running: **Exp 09** (needs the Raspberry Pi) and **Exp 11** (needs a
-3-node Ethereum consortium).
+**Experiment 09 (Sensor-side)**: still needs a Raspberry Pi. Not started.
 
 ---
 
-## Connecting from macOS
+## What actually happened this session, if you need the history
 
-The key currently lives on the Windows box at
-`C:\Users\Jzguyr\Downloads\BVCRSA_key.pem`. Copy it to the Mac, then:
+1. All four baselines (Trinity, ABSE-Range/ABSE-ERM, VC-KASE, Latt-IBEKS)
+   were rebuilt from ground-truth-assisted matching to real cryptography.
+   Full defect register: `SKILL.md §11` (D1-D9, L1-L7, F1-F6).
+2. Exp01-04 were rerun on 3 AWS `r7i.2xlarge` workers against the rebuilt
+   baselines. Total real runtime was far past the original estimate
+   (~20.5h for Exp02 alone, dominated by Trinity) — see `SKILL.md §10`.
+3. A 3-node Ethereum Clique PoA consortium was stood up on 3 new AWS
+   `t3.medium` instances for Exp11. Real gotcha hit and fixed: AWS
+   security-group self-reference rules don't reliably work over
+   public-IP hairpin routing between same-VPC instances — P2P had to be
+   reconfigured to use private IPs. Also fixed 3 code bugs in
+   `11_Blockchain_Cost/experiment.py` to get it running at all (contract
+   config key mismatch, wrong contract function signature, missing POA
+   middleware on the experiment's own Web3 connections).
+4. Manuscript tables/figures updated with real data: Table V
+   (Communication Cost, from Exp08), the primitive-microbenchmark table
+   (from Exp10), Table VII (Blockchain Anchoring Overhead, from Exp11),
+   plus text corrections where prose claims didn't match measured
+   numbers (the two "consistently achieves lowest/highest" sentences,
+   the Exp03 run-count claim, the "multi-node not captured" paragraph).
+
+## ImplementFIX cleanup (2026-08-19) — done
+
+Per explicit instruction, every reference to `ImplementFIX/` was removed
+from the project (the user is deleting that folder). This included
+`Overleaf/NeedToEdit.txt`'s 13 dangling pointers to
+`01_Protocol_Fixes.md`, `02_Proof_Fixes.md`, `03_Text_Fixes.md` —
+rather than just deleting the pointers, the actual drafted LaTeX they
+pointed to (recovered from commit `33ee254`, since `ImplementFIX/` was
+already gone from HEAD) was inlined directly into `NeedToEdit.txt` at
+each site: B1 (gateway HMAC), B2 (ABSE instantiation), B3 (the
+aggregation-authorization-bypass fix, R3-1, "the most serious finding
+in the review set"), B6 (completeness scope remark), B7 (Theorem 2
+simulator proof), B8 (leakage concessions), B10 (invalidation
+procedure), E1 (adopted-vs-novel paragraph), E2 (measurement-scope
+disclaimer), E3 (bitmap-reconstruction algorithm). Nothing was lost —
+`NeedToEdit.txt` is now self-contained and has no external pointers.
+All other files (`MD/SKILL.md`, `MD/MACOS_HANDOFF.md`, `MD/RUN_LOCAL.md`,
+`AWS/README.md`, `Overleaf/NeedToEdit_Baselines.txt`,
+`Benchmark/_shared/*.py`) were cleaned the same session — confirmed via
+`grep -rln "ImplementFIX" .` returning nothing outside `ImplementFIX/`
+itself (which the user will delete directly).
+
+One caveat left inline in `NeedToEdit.txt` (item C2/E2): the recovered
+draft's baseline-implementation-choice paragraph (Trinity-I,
+prime-order VC-KASE, small-parameter Latt-IBEKS) is now **stale** —
+this session's baseline-fidelity work replaced those with real fixes
+(Trinity-II, real VC-KASE Extract/Verify, real Latt-IBEKS MP12+LWE).
+Use `Overleaf/NeedToEdit_Baselines.txt`'s disclosure text instead of
+the inlined draft for that specific paragraph.
+
+---
+
+## Reconnecting to a running instance
+
+IPs change on every stop/start (AWS reassigns the public IP). If an
+instance is up and you don't have its current IP, check with whoever
+last restarted it. Standard connection pattern once you have the IP:
 
 ```bash
-chmod 400 ~/BVCRSA_key.pem
-ssh -i ~/BVCRSA_key.pem ubuntu@44.197.171.184
+ssh -i ~/BVCRSA_key.pem ubuntu@<ip>              # crypto-benchmark workers
+ssh -i ~/Downloads/BlockchainBVCRSA.pem ubuntu@<ip>   # blockchain consortium nodes
 ```
 
-⚠️ SSH refuses a key that is group- or world-readable. `chmod 400` is not
-optional.
-
-⚠️ The security group allows SSH **from the Windows machine's IP only**. From
-a different network you must add your new IP: *EC2 → Security Groups → Inbound
-rules → Edit → SSH → My IP*.
+Different key pairs for the two different instance groups — don't mix
+them up.
 
 ---
 
-## Checking progress
-
-Without attaching:
-
-```bash
-for ip in 44.197.171.184 98.92.182.127 34.206.1.190; do
-  echo "=== $ip ==="
-  ssh -i ~/BVCRSA_key.pem ubuntu@$ip 'tail -12 ~/bvcrsa/logs/STATUS_*.txt'
-done
-```
-
-Each line is `experiment  OK|FAIL  <seconds>`. A worker is finished when its
-status file ends with `WORKER_<label>_COMPLETE`.
-
-Attach to watch live:
-
-```bash
-ssh -i ~/BVCRSA_key.pem ubuntu@44.197.171.184
-tmux attach -t bvcrsa      # Ctrl-B then D to detach again
-```
-
-Per-experiment logs are in `~/bvcrsa/logs/<NN_Name>__experiment.log`.
-
----
-
-## Collecting results
-
-Run `AWS/collect.sh` from the project root, or by hand:
-
-```bash
-cd "Final Project Revision/project"
-for ip in 44.197.171.184 98.92.182.127 34.206.1.190; do
-  rsync -avz -e "ssh -i ~/BVCRSA_key.pem" ubuntu@$ip:~/bvcrsa/CSV/     ./CSV/
-  rsync -avz -e "ssh -i ~/BVCRSA_key.pem" ubuntu@$ip:~/bvcrsa/Figures/ ./Figures/
-  rsync -avz -e "ssh -i ~/BVCRSA_key.pem" ubuntu@$ip:~/bvcrsa/logs/    ./logs/
-done
-```
-
-⚠️ **Each worker runs its own Exp 10**, so `exp10_primitive_microbench.csv`
-exists three times and rsync will overwrite. That is deliberate — each
-worker's results should reconcile against *its own* primitive costs (R2-C3).
-Pull Exp 10 per worker under distinct names:
-
-```bash
-for w in W1:44.197.171.184 W2:98.92.182.127 W3:34.206.1.190; do
-  scp -i ~/BVCRSA_key.pem ubuntu@${w#*:}:~/bvcrsa/CSV/exp10_primitive_microbench.csv \
-      ./CSV/exp10_primitive_microbench__${w%%:*}.csv
-done
-```
-
-Then **stop the instances** — nothing else needs them.
-
----
-
-## Plots
-
-Most experiments plot themselves and write SVG directly:
-
-| Exp | Figure | Self-plots? |
-|---|---|---|
-| 01 | `exp01_trapdoor_gen.svg` | ✅ |
-| 02 | `exp02_query_vs_{range,N,d}.svg` | ✅ |
-| 03 | `exp03_query_throughput.svg` | ✅ |
-| 04 | `exp04_verification_overhead.svg` | ✅ |
-| 05 | `exp05_homomorphic_aggregation.svg` | ✅ |
-| 06 | `exp06_agg_strategy_comparison.svg` | via `plot.py`, queued on W3 |
-| 07 | `exp07_bsgs_scalability.svg` | ✅ |
-| 08 | `exp08_communication_cost.svg` | ✅ |
-| 10 | `exp10_primitive_microbench.svg` | ✅ |
-
-All are vector — `harness.save_figure()` raises on any raster extension — and
-carry 95 % CI error bars plus a "mean of N independent runs" stamp.
-
-To regenerate a plot locally after collecting, re-run that experiment's
-`plot.py`, or the experiment itself with the sweep reduced.
-
-⚠️ For Overleaf, convert SVG → vector PDF (`pdflatex` does not take SVG):
-
-```bash
-for f in Figures/*.svg; do
-  inkscape "$f" --export-type=pdf --export-filename="${f%.svg}.pdf"
-done
-```
-
-Still vector, so R1-C8 is satisfied.
-
----
-
-## What to do when the numbers land
-
-1. **Sanity-check against Exp 10.** It prints expected totals from measured
-   primitive costs. If a result is orders of magnitude below its floor, the
-   harness measured the wrong thing — that is exactly how the original
-   throughput bug was found.
-2. **Compare to `ImplementFIX/07_Audit.md`** — the local pre-run numbers.
-   Ratios should hold; absolute values will differ (different CPU).
-3. **Work `Overleaf/NeedToEdit.txt`** top-down. Parts A–C are the experiment-
-   dependent edits; parts B (protocol) and E (editorial) need no results and
-   can be written while the run finishes.
-
----
-
-## Still open — needs your decision, not code
+## Still open — needs a decision, not more code
 
 | # | Issue |
 |---|---|
-| **A8** | ABSE tokens are forgeable — `test()` never touches `PP`/`MSK`, and the policy check is a plaintext `in` test. Concrete form of R1-C2 / R3-4. |
-| **P1** | `user_client.py:21` gives users `K_sel`, which the paper forbids. Code's `gen_tag` is keyed; paper's Eq. `p3-node-keyword` is public. **Which is authoritative?** |
-| **P2** | Merkle tree is **per-record**, not per-epoch, so the `O(r log(N/r))` multi-proof in Table IV is unreachable; production is `O(r log N)`. |
-| **E1′** | Schemes answer different queries — BVCRSA binds one `(machine, t_slot)`; baselines scan all N. Selectivity differs, so latency is not like-for-like (R3-16). |
+| **L6** | Latt-IBEKS's trapdoor sampler is demonstrably forgeable (deterministic preimage, not Gaussian). A fix attempt this session failed and confirmed the real fix needs proper Gaussian perturbation sampling — high-risk, deliberately not attempted. Currently reported as a documented lower-bound. |
+| **F3** | Trinity's measured cost is inflated by a benchmark-query-shape mismatch (1-D range forced onto a 3-D Hilbert curve) — not representative of ref26's real-world cost. Needs disclosure text or a second Trinity-favorable sweep. |
+| **A8** | ABSE tokens are forgeable — `test()` never touches `PP`/`MSK`. Fixing it will raise BVCRSA's own measured cost; budget for that before quoting a final Exp02 number. |
+| **Exp11 node-count gap** | Only `node_count=3` tested; `{1,5}` from the experiment's own `config.md` never run. |
 
-Plus the 24 paper-only reviewer comments in `NeedToEdit.txt`, including
-**R3-1/2/3 — the aggregation authorization bypass**, the most serious finding
-in the review set. None of that is blocked by the run.
+Plus everything in `Overleaf/NeedToEdit_Baselines.txt` (this session's
+baseline-fidelity punch list) and `Overleaf/NeedToEdit.txt` (now
+self-contained, see the ImplementFIX-cleanup note above).

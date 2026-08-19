@@ -26,8 +26,8 @@ G2 form derived from the same scalar exponent (see `_DualPoint` / the
 g_i table below), and every pairing call combines a G1-form with a
 G2-form of the two quantities being tested. This is the same technique
 Attribute-based.py already uses for the same reason, not something new
-here -- see ImplementFIX/09 for why a Type-1 library isn't available in
-this stack.
+here -- py_arkworks_bls12381 exposes a Type-3 pairing (asymmetric G1/G2),
+not a Type-1 library, which is what this stack has available.
 
 ── Faithful to the paper ───────────────────────────────────────────
   Setup            g_i = g^(alpha^i) table, i = 1..2n

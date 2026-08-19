@@ -11,7 +11,7 @@ Parameters n=17, q=4093 match the paper's own Section VI-B experimental
 setup verbatim (SKILL.md §11, corrected 2026-08-17) -- not a toy
 shortcut, and not touched here.
 
-── What was there before (see ImplementFIX/09) ────────────────────────
+── What was there before ───────────────────────────────────────────────
 `LatticeIBEKSAlgo` built two independent random public matrices with no
 identity layer, no trapdoor sampling, and no relationship to the
 paper's actual algorithms at all -- a generic two-ciphertext LWE

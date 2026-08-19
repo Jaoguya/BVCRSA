@@ -161,9 +161,9 @@ test() performs a real pairing but the policy check is a plaintext `in`
 test -- every measured ABSE.Test timing authorizes nobody. Fixing this
 (concrete form of R1-C2/R3-4) will likely RAISE BVCRSA's own measured
 cost. Budget for that before quoting any final Exp02 number as the
-paper's headline. Full writeup: ImplementFIX/01_Protocol_Fixes.md (if
-still present -- confirm, this file was deleted from the repo earlier
-this session and may need restoring from git history).
+paper's headline. Needs a real concrete ABSE construction with an actual
+policy-satisfaction check inside test(), not a pairing that always
+succeeds regardless of the caller's attributes.
 
 
 --------------------------------------------------------------------------------
@@ -199,17 +199,31 @@ DECIDE ONE:
 
 
 --------------------------------------------------------------------------------
-11. [WAIT-FOR-RERUN] Blockchain Anchoring Overhead table -- still symbolic
+11. [DONE, WITH A GAP] Blockchain Anchoring Overhead table -- real data now
     Section: V, Blockchain Anchoring Overhead
 --------------------------------------------------------------------------------
-Table currently has $\overline{G}\pm\sigma_G$ etc. placeholders. Needs
-Experiment 11, which needs a dedicated 3-node Ethereum Clique-PoA
-consortium -- separate infrastructure task, scoped but not started
-(see chat: setup spec already worked out, ~1.5h total once begun,
-independent of the current Exp01-04 job). Table as currently scoped only
-covers single-node gas/payload/latency, not multi-node sync -- R7-C5
-specifically wants multi-node; a single-node run would not fully answer
-it even once populated.
+Done 2026-08-18. Real 3-node Clique PoA consortium (AWS, private-IP P2P --
+public-IP peering silently fails on self-referencing security groups,
+a real gotcha hit and fixed this session), real contract deployment, real
+Exp11 run. Table VII now reads gas=43,829.80+/-3.69, payload=124+/-0,
+confirmation=5.877+/-0.438s. Fig. blockchain_cost added (4-point block-
+interval sweep, real error bars). Three code bugs fixed to get it
+running: contract_config.json key mismatch (contract_address vs address),
+wrong contract function name/signature (anchorEpoch vs the real
+anchorEpochRoot(epoch,root), no timestamp param), and missing POA
+middleware on experiment.py's own Web3 connections (ethereum_connector.py
+had it, experiment.py didn't).
+
+GAP, still open: config.md specifies node_count in {1,3,5} as part of the
+independent variable -- only node_count=3 was ever run. The {1,5}
+comparison R7-C5 would want to see a real curve (not just one point)
+was never produced. Also unverified: single-submitter bias (all
+transactions submitted from node1, which is also 1-of-3 sealers),
+non-independence across the 4 interval rows (same chain, same reused
+epoch numbers, sequential not fresh), and the interval=1s gas anomaly
+(120,245 vs ~43,829 for the others) has an unverified explanation
+(fresh vs overwrite SSTORE cost) that was never actually confirmed
+against a transaction's storage access list.
 
 
 --------------------------------------------------------------------------------

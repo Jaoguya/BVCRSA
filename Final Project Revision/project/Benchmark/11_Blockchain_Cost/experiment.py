@@ -80,6 +80,7 @@ def main():
 
     try:
         from web3 import Web3
+        from web3.middleware import ExtraDataToPOAMiddleware
     except ImportError:
         print("  web3 not installed:  pip install web3")
         sys.exit(2)
@@ -94,6 +95,7 @@ def main():
     conns = []
     for url in NODE_RPCS:
         w3 = Web3(Web3.HTTPProvider(url, request_kwargs={"timeout": 20}))
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         if not w3.is_connected():
             print(f"  unreachable: {url}")
             continue
@@ -119,8 +121,8 @@ def main():
 
             t0 = time.perf_counter()
             try:
-                tx = contract.functions.anchorEpoch(
-                    e, root, int(time.time())).transact(
+                tx = contract.functions.anchorEpochRoot(
+                    e, root).transact(
                         {"from": w3.eth.accounts[0]})
                 receipt = w3.eth.wait_for_transaction_receipt(tx, timeout=180)
             except Exception as ex:
@@ -152,6 +154,13 @@ def main():
 
         epochs_per_year = (365 * 24 * 3600) / max(interval, 1)
         ledger_year_mb = ANCHOR_PAYLOAD_BYTES * epochs_per_year / (1024 ** 2)
+
+        print(f"    TABLE_VII gas_mean={statistics.fmean(gas_samples):.2f} "
+              f"gas_sd={statistics.stdev(gas_samples):.2f} "
+              f"anchor_mean_s={statistics.fmean(anchor_samples)/1000:.4f} "
+              f"anchor_sd_s={statistics.stdev(anchor_samples)/1000:.4f} "
+              f"finality_mean_s={statistics.fmean(final_samples)/1000:.4f} "
+              f"finality_sd_s={statistics.stdev(final_samples)/1000:.4f}")
 
         exp.record(summarize(anchor_samples),
                    nodes=len(conns), block_interval_s=interval,
@@ -189,7 +198,7 @@ def _load_contract(w3):
     try:
         with open(cfg) as f:
             meta = json.load(f)
-        return w3.eth.contract(address=meta["address"], abi=meta["abi"])
+        return w3.eth.contract(address=meta["contract_address"], abi=meta["abi"])
     except Exception:
         return None
 

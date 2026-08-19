@@ -174,8 +174,9 @@ Update it when the instance changes; nothing else hardcodes them.
 Attach one, or expect to edit this file after every restart.
 
 Copy `AWS_INSTANCE_TYPE`, `AWS_VCPU`, `AWS_RAM_GB`, `AWS_OS` straight into the
-paper's Experimental Setup — see `ImplementFIX/03_Text_Fixes.md` §F9, which
-has the replacement paragraph with placeholders for exactly these values.
+paper's Experimental Setup paragraph — these are the values the AWS-only
+execution policy (`SKILL.md §2`) requires stated as one consistent
+hardware description (R1-C5 / R3-C15).
 
 ---
 

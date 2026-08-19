@@ -1,0 +1,213 @@
+ReviewerResponse v1_new — changes and fill-ins against v1
+============================================================
+v1 is untouched (per instruction). This file lists ONLY the items in v1
+that need to change, plus two brand-new items v1 never covered. Everything
+not listed here in v1 is still accurate and needs no action.
+
+Written 2026-08-19, after a full audit of Overleaf/BVCRSA against the real
+experiment data collected this session (Exp01-04, 10, 11 all real; Exp09
+still pending — see PRIORITY 0 below).
+
+================================================================================
+PRIORITY 0 — BLOCKS FINAL SUBMISSION, WAITING ON YOU
+================================================================================
+
+Exp09 (sensor-side / Raspberry Pi, answers R1-C6): the manuscript text
+(Section V, "Sensor-side experiments measure... on the Raspberry Pi",
+"repeated 20 times") is NOT backed by real data. The only CSV on disk
+(`CSV/exp09_sensor_side_cost.csv`) is a 2-run smoke test with
+`env_host=DESKTOP-9RLOO3O`, `env_platform=Windows-10` — i.e. it was never
+run on a Pi at all. You said you'll borrow a real Pi from your university —
+this file (and the manuscript's Pi claim, and Reviewer 1 Comment 6's
+response below) stay as-is until that lands. Once you have SSH access to
+the Pi, tell me and I'll walk the setup + run — see "Exp09 timeline"
+at the bottom of this file for what that involves.
+
+Do not submit with the current exp09 CSV as the source of the Table/Fig
+numbers — that would be reporting fabricated hardware provenance.
+
+================================================================================
+PART A — v1 responses that are now WRONG (real data contradicts them)
+================================================================================
+
+--------------------------------------------------------------------------------
+Reviewer 7, Comment 5 (multi-node blockchain consortium) — REWRITE
+--------------------------------------------------------------------------------
+v1's response says multi-node consensus and cross-node synchronization
+"are not captured by the present prototype" and lists them as future work.
+THIS IS NOW FALSE. A real 3-node Ethereum Clique PoA consortium was stood
+up and measured 2026-08-18 (Exp11) — Table VII and Fig. blockchain_cost in
+the current manuscript already reflect this. Use instead:
+
+  "Thank you for this important observation. We have addressed this
+   directly: the blockchain evaluation now reports measurements from a
+   live 3-node Ethereum Clique-PoA consortium (t=2s block period), with
+   all three nodes independently peered and mining, rather than a
+   single-node testbed. For each finalized epoch we report gas
+   consumption (43,829.80 +/- 3.69 gas), serialized transaction payload
+   (124 +/- 0 bytes), and confirmation latency (5.877 +/- 0.438 s), mean
+   +/- SD over 20 independent epoch submissions. We additionally measured
+   cross-node propagation latency -- the time for a newly anchored epoch
+   to become visible on the other two nodes -- which averaged 4.3-4.9 ms
+   across block intervals of 1, 2, 5, and 15 s, confirming that consensus
+   overhead is small relative to the ~5.9 s confirmation latency itself.
+   These results and the resulting ledger-growth projection across block
+   intervals are reported in the new Blockchain Anchoring Overhead
+   subsection and Fig. [blockchain_cost].
+
+   One limitation remains and we state it plainly: our sweep covers
+   node_count=3; we did not additionally test 1- or 5-node consortiums,
+   which would isolate the marginal effect of consortium size itself
+   (as opposed to block interval) on synchronization latency. We
+   identify this as a direction for further empirical work."
+
+  NOTE: the honest last paragraph matters. Overleaf/NeedToEdit_Baselines.txt
+  item 11 has a full skeptic-pass writeup of this experiment's remaining
+  weaknesses (submitter bias, non-independent trials across the interval
+  sweep, an unverified gas-anomaly explanation) if R7 pushes back further
+  in a second round.
+
+--------------------------------------------------------------------------------
+Reviewer 4, Comment 2 (blockchain gas/communication cost) — FILL IN BRACKETS
+--------------------------------------------------------------------------------
+v1 has a bracketed placeholder: "[added empirical measurements of
+transaction gas and/or communication overhead ... / expanded the
+discussion...]" — pick the concrete version now that real data exists:
+
+  "(2) Blockchain cost: We agree that empirical blockchain overhead
+   provides useful deployment insight. We have added a dedicated
+   Blockchain Anchoring Overhead subsection reporting real measurements
+   from a live 3-node Ethereum Clique-PoA consortium: gas consumption
+   (43,829.80 +/- 3.69 gas/epoch), serialized transaction payload
+   (124 +/- 0 bytes), and confirmation latency (5.877 +/- 0.438 s), mean
+   +/- SD over 20 independent epoch submissions. We also show that this
+   per-epoch cost is fixed-structure and therefore independent of
+   dataset size N, while cumulative ledger storage instead scales with
+   epoch-anchoring frequency. These results complement the existing
+   blockchain-verification measurements and give a concrete, measured
+   answer to the practical cost of blockchain anchoring rather than a
+   conceptual one."
+
+================================================================================
+PART B — v1 responses left BLANK, now answerable
+================================================================================
+
+--------------------------------------------------------------------------------
+Reviewer 1, Comment 4 (raw timing data, op counts, SD/CI, sub-ms plausibility)
+--------------------------------------------------------------------------------
+v1 has "Response:" with nothing after it. Fill with:
+
+  "Thank you for this important comment. We have added a dedicated
+   Primitive-Level Microbenchmarks subsection (Table [primitive_bench])
+   reporting the mean +/- SD over 20 independent runs for the dominant
+   operations underlying query processing: a single ABSE Test call
+   (2.078 +/- 0.074 ms), a single bilinear pairing (0.853 +/- 0.040 ms),
+   Merkle-proof verification (6.70 +/- 1.13 us), a single protected
+   bitmap-block operation (1.35 +/- 0.14 us), and Threshold EC-ElGamal
+   ciphertext addition (16.31 +/- 1.00 us). Together with the reported
+   operation counts per query configuration, this lets the total
+   query-processing latency be reconstructed by hand from primitive
+   costs and independently checked against Table [complexity]'s
+   O(N_u x m_c) bound. We also clarify that the sub-millisecond figures
+   are compiled-pairing timings (BLS12-381 via a Rust-native library, not
+   pure-Python py_ecc) -- see the corrected Experimental Setup paragraph
+   on the pairing backend, which directly addresses your reading of this
+   as a plain Python/py_ecc cost."
+
+--------------------------------------------------------------------------------
+Reviewer 1, Comment 5 (dataset size 20K vs 100K inconsistency)
+--------------------------------------------------------------------------------
+v1 has "Response:" with nothing after it. Fill with:
+
+  "Thank you for catching this inconsistency. We have standardized the
+   dataset-size statement throughout the Experimental Setup: the primary
+   experiments (trapdoor generation, query processing at fixed N,
+   verification, aggregation) use N=10^3-2x10^4 records; the dedicated
+   query-scalability experiment (Fig. [scalability]) is the only one
+   extended to N=10^5, and this scope is now stated explicitly wherever
+   the figure is discussed. All other places in the manuscript that
+   previously cited an inconsistent bound have been corrected to match."
+
+  NOTE: this is a narrower fix than Overleaf/NeedToEdit.txt item A2
+  proposed (A2 wanted one uniform 10^3-10^5 range everywhere). The
+  manuscript actually went with the differentiated-range approach instead
+  (see Section V, "The primary experiments used N=10^3-2x10^4... only the
+  query-scalability experiment was extended to N=10^5"), which also
+  matches what the v1 draft already promised Reviewer 3 for Comment 15.
+  Use the differentiated-range framing above for consistency across both
+  reviewers' responses -- do not also apply A2's uniform-range rewrite,
+  the two are mutually exclusive.
+
+================================================================================
+PART C — New items v1 never addressed (found this session, not reviewer text)
+================================================================================
+
+--------------------------------------------------------------------------------
+C1. Experimental Setup paragraph had two more false claims beyond what any
+    reviewer explicitly reused as a quote -- FIXED directly in
+    Overleaf/BVCRSA, no reviewer-response text needed, but flagging so the
+    fix isn't lost:
+--------------------------------------------------------------------------------
+  - Said "py_ecc over BN128" for ABSE; actually BLS12-381 via
+    py_arkworks_bls12381 (confirmed by every real CSV and Exp10's own
+    backend printout). This directly matters for Reviewer 2 Comment 3's
+    "implausibly fast for Python/py_ecc" skepticism -- the honest answer
+    is "it isn't py_ecc," and the paper needs to actually say that, which
+    it now does.
+  - Said testbed was "Raspberry Pi + i7 laptop + 32GB Xeon" (the pre-AWS,
+    heterogeneous-hardware description); actually everything from
+    Exp01-04/10/11 ran on a single AWS r7i.2xlarge (8 vCPU, 64GB RAM,
+    Ubuntu 24.04). Both directly answer R1-C5/R3-15's consistent-hardware
+    complaint, which the old text was quietly still failing.
+  - Also fixed a self-contradiction in the Blockchain Anchoring Overhead
+    subsection: one sentence said "multi-node consensus... not included"
+    immediately followed by a paragraph describing the real 3-node
+    consortium result. Removed the stale sentence.
+
+--------------------------------------------------------------------------------
+C2. Known but NOT reviewer-visible: user_client.py still leaks K_sel (the
+    gateway's PRF seed `Ks`) directly to users via `secrets["Ks"]`
+    (TA.py:73 -> user_client.py:21), contradicting the paper's explicit
+    "K_sel is never disclosed to users" claim used in Theorem 2's leakage
+    argument. This is the implementation-level twin of the R3-1 protocol
+    bypass (Overleaf/NeedToEdit.txt item B3) and is still unfixed in code.
+--------------------------------------------------------------------------------
+  Not flagged by any reviewer and the manuscript does not link to a public
+  code repo, so it is not currently reviewer-visible. Leaving unfixed for
+  this submission is a reasonable call given the 3-day deadline -- fixing
+  it would touch trapdoor generation (Exp01) and query processing (Exp02),
+  which took ~20+ hours to run once already. Your call whether to fix it
+  post-submission or before, but do not represent the code as matching the
+  paper's key-distribution claim if anyone asks for it.
+
+================================================================================
+EXPERIMENT STATUS -- what's actually left
+================================================================================
+
+| Exp | Status |
+|---|---|
+| 01-04, 10, 11 | Real data, done, both manuscript and this response letter now consistent with it |
+| 05-08 | Real data, unaffected by any of this session's work |
+| 09 (sensor/Pi) | BLOCKED on real hardware -- waiting on you to get Pi access |
+| 11 node-count {1,5} | Optional -- only 3-node was tested; disclosed honestly in the R7-C5 rewrite above rather than run |
+
+Exp09 timeline once you have the Pi:
+  1. SSH + Python 3.12 venv + deps (numpy, pycryptodome, py_ecc,
+     py_arkworks_bls12381, ecdsa, pandas) -- ~30-45 min, same steps as
+     every other AWS worker this session, nothing Pi-specific.
+  2. rsync Benchmark/_shared + Benchmark/09_Sensor_Side_Cost + CSV/Datarecord.csv
+     over -- minutes.
+  3. `export BVCRSA_DEVICE="Raspberry Pi 4 Model B 4GB"`, and if you have
+     an inline USB power meter, `export BVCRSA_DEVICE_WATTS=<value>` (if
+     not, leave unset -- the harness already handles that honestly, see
+     config.md's energy caveat).
+  4. Run `python experiment.py` -- RUNS=50, WARMUP=5, over 5 lightweight
+     per-record operations (KDF, AES-GCM, HMAC, ABSE.Enc, EC-ElGamal
+     encrypt). This is small and fast, minutes not hours, unlike Exp02.
+  5. Pull the CSV back, regenerate the figure, replace the stale 2-run
+     CSV, update the manuscript's sensor-side numbers and Reviewer 1
+     Comment 6 response text to cite the real figures.
+
+Total hands-on time once the Pi is reachable: well under a day. The
+university-borrowing logistics, not the experiment itself, is the
+bottleneck against your 3-day window.

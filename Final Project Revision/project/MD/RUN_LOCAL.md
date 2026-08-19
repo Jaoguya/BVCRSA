@@ -90,9 +90,11 @@ python -m pip install py_arkworks_bls12381
 | yes | BLS12-381 via compiled Rust, ~50× faster pairings | ❌ paper says `py_ecc`/BN128 — **wrong** |
 | no | BN128 via pure-Python `py_ecc` | ✅ matches the paper, but everything is ~50× slower |
 
-Pick one, keep it fixed for every run, and make the manuscript match.
-`ImplementFIX/01_Protocol_Fixes.md` §F4 has the corrected text for the
-BLS12-381 case. Experiment 10 prints which backend is live.
+Pick one, keep it fixed for every run, and make the manuscript match —
+if BLS12-381 is what actually ran (it is, per Exp10's confirmed backend),
+the Experimental Setup text needs to say BLS12-381 via
+`py_arkworks_bls12381`, not `py_ecc`/BN128. Experiment 10 prints which
+backend is live on every run.
 
 If the install fails on Windows, it is a Rust extension without a prebuilt
 wheel for your Python version. Either install the Rust toolchain

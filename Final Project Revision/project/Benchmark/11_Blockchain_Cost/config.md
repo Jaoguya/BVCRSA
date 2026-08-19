@@ -1,8 +1,15 @@
 # Experiment 11 — Blockchain Anchoring Cost
 
-**Status:** NEW — reviewer-mandated, no prior code.
+**Status:** RUN 2026-08-18 on a real 3-node AWS Clique PoA consortium.
+Real data in `CSV/exp11_blockchain_cost.csv`, `Figures/exp11_blockchain_cost.svg`,
+and Table VII / Fig. `blockchain_cost` in the manuscript. **Gap**: only
+`node_count=3` was run — the `{1,5}` comparison points below were never
+tested, so the node-count half of the independent variable is incomplete.
+See `MD/SKILL.md §10` and `Overleaf/NeedToEdit_Baselines.txt` item 11 for
+the full status including a skeptic pass on the results (submitter bias,
+non-independent interval trials, unverified gas-anomaly explanation).
 **Figure:** `exp11_blockchain_cost.svg`
-**Answers:** R7-C5, R4-C2
+**Answers:** R7-C5, R4-C2 (R7-C5's node-count sweep only partially)
 
 ## Why it exists
 

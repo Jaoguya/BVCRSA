@@ -190,7 +190,7 @@ def plot(rows):
         st = style(key)
         ax.errorbar([p["matched_records"] for p in pts],
                     [p["mean_ms"] for p in pts],
-                    yerr=[p["ci95_ms"] for p in pts],
+                    yerr=[p["stdev_ms"] for p in pts],
                     label=label, capsize=3, color=st["color"],
                     marker=st["marker"], linestyle=st["ls"])
     ax.set_yscale("log")

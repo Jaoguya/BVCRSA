@@ -8,7 +8,7 @@ Based on: Y. Li, H. Wang, S. Wang, Y. Ding, "Attribute-Based Searchable
 Encryption Scheme Supporting Efficient Range Search in Cloud Computing"
 (ABSE-ERM), DSC 2021.
 
-── What changed this revision (see ImplementFIX/09) ──────────────────
+── What changed this revision ──────────────────────────────────────────
 The paper's headline contribution -- 0/1-coding theory for making range
 search efficient (avoiding one token per integer in the range) -- was
 completely absent: trap_gen() only ever took a keyword, and the range
@@ -266,8 +266,9 @@ def trap_gen(sk, query_keywords, value_range=None):
 
 def search(ct_doc, trapdoor):
     # Step A: attribute matching -- real pairings (kept as the existing
-    # flat-attribute structure; see ImplementFIX/10 Phase 3.1 for the
-    # LSSS (t,n)-threshold matrix this still needs, not yet built).
+    # flat-attribute structure; the paper's LSSS (t,n)-threshold access
+    # matrix is not yet built -- this is a flat AND-list, not a real
+    # threshold structure).
     attr_ok = True
     for attr in ct_doc['policy']:
         if attr in trapdoor['trap_attr']:
