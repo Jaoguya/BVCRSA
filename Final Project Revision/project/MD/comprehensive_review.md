@@ -1,3 +1,31 @@
+# ⚠️ OBSOLETE — do not use, kept only for history
+
+This file reviews a codebase called **"AC-SCRAT"**, at
+`/home/student/Downloads/project/`, using MongoDB Atlas, a Flask API
+(`main.py`), Paillier + EC-ElGamal, and comparison baselines named
+**EPRQ+, EPBRQ, Trinity-I, MHRQ** — none of which match the current
+project. This is an artifact from an earlier iteration of this work
+before it became **BVCRSA**: different name, different storage layer
+(MongoDB vs. the current AWS EC2 + flat-CSV benchmark harness), different
+file layout, different baseline set entirely.
+
+**Do not read this as a review of BVCRSA.** For the current system:
+
+| Need | Read instead |
+|---|---|
+| Current status, what's real vs. pending | `MD/HANDOFF.md` |
+| Full suite reference, defect register | `MD/SKILL.md` |
+| Manuscript edit list | `Overleaf/NeedToEdit.txt`, `Overleaf/NeedToEdit_Baselines.txt` |
+| Reviewer response letter | `ReviewerResponse/v1` (original) / `v1_new` (changes) |
+
+Left in place rather than deleted only because it may still be useful as
+a record of what an early single-cloud-DB prototype looked like before
+the AWS/blockchain/threshold-crypto rebuild. Everything below this line
+is the original, untouched content — none of it has been verified
+against, or has anything to do with, the current BVCRSA codebase.
+
+---
+
 # AC-SCRAT Comprehensive Review — Final Paper Readiness
 
 ## Executive Summary

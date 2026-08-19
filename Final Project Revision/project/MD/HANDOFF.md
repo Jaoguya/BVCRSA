@@ -1,106 +1,121 @@
 # Handoff — current state
 
-Written 2026-08-17, rewritten 2026-08-19 — the previous version described a
-run that finished and was fully superseded; nothing on this page was
-accurate anymore. Read this first in a new session, then `SKILL.md` §10-11
-for full detail.
+Written 2026-08-17, rewritten 2026-08-19 (twice — the AWS-rerun pass, then
+a much larger doc-vs-manuscript audit pass later the same day). Read this
+first in a new session, then `SKILL.md` §10-11 for full detail, then
+`ReviewerResponse/v1_new` for what's changed in the response letter.
 
 ---
 
 ## Where things actually stand
 
-**Experiments 01–04**: real data, from a real AWS rerun against the current
-(real-crypto) baselines, completed 2026-08-18. All 3 crypto-benchmark
-workers used for that run are **stopped**. `CSV/exp0{1,2,3,4}_*.csv` and
-the matching `Figures/` are current and correct — `env_host` in each row
-confirms they came from the real workers, not a local smoke test.
+**Experiments 01–04, 08, 10, 11**: all real data. Every AWS instance used
+to produce any of it is now **stopped** — confirmed by direct SSH
+connection-timeout checks on every IP this session touched (the 3
+original crypto workers, the ABSE-Range gap-fill worker, the 3
+blockchain nodes). Nothing is running or billing anywhere right now.
 
-**Experiment 11 (Blockchain)**: real data, from a real 3-node AWS Clique
-PoA consortium, completed 2026-08-18. Those 3 instances are still up as
-of this writing (not yet stopped — check before assuming). Table VII and
-`Fig. blockchain_cost` in the manuscript are filled with this data.
-**Known gap**: only `node_count=3` was run; the paper's own `config.md`
-also specifies `{1,5}` as comparison points, never tested. See
-`SKILL.md §10` and `Overleaf/NeedToEdit_Baselines.txt` item 11 for a full
-skeptic pass on these numbers (submitter bias, non-independent trials
-across the interval sweep, an unverified gas-anomaly explanation).
+**Experiment 09 (Sensor-side)**: still blocked on a real Raspberry Pi.
+User is borrowing one from their university — full setup guide ready at
+`MD/raspberry.md`, nothing to do until SSH access to the Pi exists. The
+manuscript's Pi claim and the sensor-side numbers stay exactly as-is
+(known-fake placeholder) until real data lands — do not touch.
 
-**Experiments 05–08, 10**: unaffected by any of this session's baseline
-work (05-08 never import `baselines.py`; 10 was re-run 2026-08-18 anyway
-for fresh Table A/B reconciliation data). All current.
-
-**Experiment 09 (Sensor-side)**: still needs a Raspberry Pi. Not started.
+**Experiment 11 node-count gap**: only `node_count=3` was run; the
+experiment's own `config.md` also specifies `{1,5}`, never tested.
+Disclosed honestly in the R7-C5 response rewrite in `v1_new` rather than
+run — see `Overleaf/NeedToEdit_Baselines.txt` item 11 for the full
+skeptic-pass writeup of this experiment's remaining weaknesses.
 
 ---
 
-## What actually happened this session, if you need the history
+## The manuscript had real, serious problems beyond stale data — all fixed 2026-08-19
 
-1. All four baselines (Trinity, ABSE-Range/ABSE-ERM, VC-KASE, Latt-IBEKS)
-   were rebuilt from ground-truth-assisted matching to real cryptography.
-   Full defect register: `SKILL.md §11` (D1-D9, L1-L7, F1-F6).
-2. Exp01-04 were rerun on 3 AWS `r7i.2xlarge` workers against the rebuilt
-   baselines. Total real runtime was far past the original estimate
-   (~20.5h for Exp02 alone, dominated by Trinity) — see `SKILL.md §10`.
-3. A 3-node Ethereum Clique PoA consortium was stood up on 3 new AWS
-   `t3.medium` instances for Exp11. Real gotcha hit and fixed: AWS
-   security-group self-reference rules don't reliably work over
-   public-IP hairpin routing between same-VPC instances — P2P had to be
-   reconfigured to use private IPs. Also fixed 3 code bugs in
-   `11_Blockchain_Cost/experiment.py` to get it running at all (contract
-   config key mismatch, wrong contract function signature, missing POA
-   middleware on the experiment's own Web3 connections).
-4. Manuscript tables/figures updated with real data: Table V
-   (Communication Cost, from Exp08), the primitive-microbenchmark table
-   (from Exp10), Table VII (Blockchain Anchoring Overhead, from Exp11),
-   plus text corrections where prose claims didn't match measured
-   numbers (the two "consistently achieves lowest/highest" sentences,
-   the Exp03 run-count claim, the "multi-node not captured" paragraph).
+These were found by directly checking `Overleaf/BVCRSA` against the real
+CSVs, not by trusting prior session notes. Full technical detail in
+`SKILL.md §10`; this is the summary.
+
+1. **The manuscript did not compile.** Every `\includegraphics` except
+   the blockchain one pointed at PNG files in a folder (`all_figures/`)
+   that didn't exist anywhere in the repo. Fixed: all 7 real-data figures
+   converted to vector PDF into `Overleaf/all_figures/`, every reference
+   corrected, and the "combined 3-panel" figure (Fig. 2) — which never
+   had a generating script, only a described-but-never-built file — was
+   built from scratch.
+
+2. **Every figure with error bars was plotting a 95% CI while every
+   caption claimed "±1 SD".** Systematic mismatch across 6 experiments'
+   plotting code plus the shared `harness.py` auto-stamp. Fixed: `yerr`
+   switched from `ci95_ms` to `stdev_ms` everywhere, figures replotted
+   from the same real CSVs (no re-run needed), stamp text corrected.
+
+3. **Table VI (primitive microbenchmarks) traced to a local Windows PC,
+   not AWS.** The most-recent-looking CSV silently violated the paper's
+   own "every number comes from AWS" claim, and its numbers didn't even
+   match what was in the manuscript. Fixed: switched to real data from
+   AWS worker `ip-172-31-15-37` (same worker that produced Table V's
+   numbers).
+
+4. **Table V was mislabeled "Estimated"** despite being real measured
+   data the whole time. Relabeled "Measured".
+
+5. **The biggest one: 7 places in the Performance Evaluation prose
+   directly contradicted the manuscript's own embedded figures.**
+   "BVCRSA exhibits the lowest/highest ___" in Trapdoor Gen, Query
+   Throughput, and all 3 Query Processing sweeps — false; Latt-IBEKS is
+   actually faster in every one of those, VC-KASE beats BVCRSA on
+   verification past `|R_Q|~100`. The Aggregation section claimed
+   "below 20ms", which was already known to be arithmetically impossible
+   (real floor: ~53-76ms). This was tracked as
+   `NeedToEdit_Baselines.txt` item 12 — flagged `[WAIT-FOR-RERUN]` back
+   when the AWS rerun was still in progress, and never actually finished
+   once it landed. Now `[DONE]`, full before/after number list in that
+   file. Fix pattern used throughout: state the real ranking honestly,
+   explain the gap via capability (BVCRSA does policy-binding +
+   verification + aggregation-readiness that the faster, simpler
+   baselines don't), not by hiding or re-fabricating a "wins" claim.
+   Also added a Latt-IBEKS reduced-parameter disclosure to the
+   "Baseline Configuration" paragraph, since it didn't exist before and
+   several of the fixes now depend on the reader knowing why Latt-IBEKS
+   is unusually fast.
+
+6. **ABSE-Range gap-fill (N=20k/50k/100k) finished mid-session and was
+   integrated** — appended to `CSV/exp02_query_processing.csv`,
+   `exp02_query_vs_N.svg` and the combined-3-panel figure regenerated.
+   Caveat: the ad-hoc script that ran it only logged summary stats, so
+   `median_ms`/`raw_ms` are blank for those 3 rows specifically (noted
+   in the CSV's own `note` column).
+
+Exploratory, **not wired into the manuscript**: bolder/black error-bar
+styling and a per-scheme faceted layout for Exp01 exist under
+`Figures/bold_errorbars/`, made while investigating SD visibility on a
+shared log-scale axis. Safe to ignore or delete.
+
+---
 
 ## ImplementFIX cleanup (2026-08-19) — done
 
-Per explicit instruction, every reference to `ImplementFIX/` was removed
-from the project (the user is deleting that folder). This included
-`Overleaf/NeedToEdit.txt`'s 13 dangling pointers to
-`01_Protocol_Fixes.md`, `02_Proof_Fixes.md`, `03_Text_Fixes.md` —
-rather than just deleting the pointers, the actual drafted LaTeX they
-pointed to (recovered from commit `33ee254`, since `ImplementFIX/` was
-already gone from HEAD) was inlined directly into `NeedToEdit.txt` at
-each site: B1 (gateway HMAC), B2 (ABSE instantiation), B3 (the
-aggregation-authorization-bypass fix, R3-1, "the most serious finding
-in the review set"), B6 (completeness scope remark), B7 (Theorem 2
-simulator proof), B8 (leakage concessions), B10 (invalidation
-procedure), E1 (adopted-vs-novel paragraph), E2 (measurement-scope
-disclaimer), E3 (bitmap-reconstruction algorithm). Nothing was lost —
-`NeedToEdit.txt` is now self-contained and has no external pointers.
-All other files (`MD/SKILL.md`, `MD/MACOS_HANDOFF.md`, `MD/RUN_LOCAL.md`,
-`AWS/README.md`, `Overleaf/NeedToEdit_Baselines.txt`,
-`Benchmark/_shared/*.py`) were cleaned the same session — confirmed via
+Every reference to `ImplementFIX/` was removed from the project (the
+folder is being deleted). `Overleaf/NeedToEdit.txt`'s 13 dangling
+pointers were resolved by inlining the actual drafted LaTeX they pointed
+to (recovered from git history commit `33ee254`) directly at each site —
+nothing was lost, the file is now self-contained. Confirmed via
 `grep -rln "ImplementFIX" .` returning nothing outside `ImplementFIX/`
-itself (which the user will delete directly).
-
-One caveat left inline in `NeedToEdit.txt` (item C2/E2): the recovered
-draft's baseline-implementation-choice paragraph (Trinity-I,
-prime-order VC-KASE, small-parameter Latt-IBEKS) is now **stale** —
-this session's baseline-fidelity work replaced those with real fixes
-(Trinity-II, real VC-KASE Extract/Verify, real Latt-IBEKS MP12+LWE).
-Use `Overleaf/NeedToEdit_Baselines.txt`'s disclosure text instead of
-the inlined draft for that specific paragraph.
+itself.
 
 ---
 
-## Reconnecting to a running instance
+## Reconnecting to an instance, if you spin one back up
 
-IPs change on every stop/start (AWS reassigns the public IP). If an
-instance is up and you don't have its current IP, check with whoever
-last restarted it. Standard connection pattern once you have the IP:
+IPs change on every stop/start (AWS reassigns the public IP). Standard
+connection pattern once you have a current IP:
 
 ```bash
-ssh -i ~/BVCRSA_key.pem ubuntu@<ip>              # crypto-benchmark workers
+ssh -i ~/BVCRSA_key.pem ubuntu@<ip>                   # crypto-benchmark workers
 ssh -i ~/Downloads/BlockchainBVCRSA.pem ubuntu@<ip>   # blockchain consortium nodes
 ```
 
-Different key pairs for the two different instance groups — don't mix
-them up.
+Different key pairs for the two instance groups — don't mix them up.
 
 ---
 
@@ -108,11 +123,24 @@ them up.
 
 | # | Issue |
 |---|---|
-| **L6** | Latt-IBEKS's trapdoor sampler is demonstrably forgeable (deterministic preimage, not Gaussian). A fix attempt this session failed and confirmed the real fix needs proper Gaussian perturbation sampling — high-risk, deliberately not attempted. Currently reported as a documented lower-bound. |
+| **L6** | Latt-IBEKS's trapdoor sampler is demonstrably forgeable (deterministic preimage, not Gaussian). A fix attempt failed; real fix needs proper Gaussian perturbation sampling — high-risk, deliberately not attempted. Currently reported as a documented lower-bound. |
 | **F3** | Trinity's measured cost is inflated by a benchmark-query-shape mismatch (1-D range forced onto a 3-D Hilbert curve) — not representative of ref26's real-world cost. Needs disclosure text or a second Trinity-favorable sweep. |
 | **A8** | ABSE tokens are forgeable — `test()` never touches `PP`/`MSK`. Fixing it will raise BVCRSA's own measured cost; budget for that before quoting a final Exp02 number. |
-| **Exp11 node-count gap** | Only `node_count=3` tested; `{1,5}` from the experiment's own `config.md` never run. |
+| **C2 (this session)** | `user_client.py` still leaks `K_sel` to users via `secrets["Ks"]`, contradicting the paper's "K_sel is never disclosed to users" claim. Not reviewer-visible (no public code repo linked), left unfixed given the deadline — fixing it would touch Exp01/02 (~20h to re-run). |
+| **modelAHE.pdf** | Fig. 1 (system model) is a hand-drawn diagram that was never committed. The only remaining `\includegraphics` in the manuscript pointing at a file that doesn't exist. Needs actual diagram design (7 entities, trust boundaries per the original spec), not something derivable from data. |
+| **Exp11 node-count gap** | Only `node_count=3` tested; `{1,5}` never run. Disclosed rather than fixed — see above. |
 
-Plus everything in `Overleaf/NeedToEdit_Baselines.txt` (this session's
-baseline-fidelity punch list) and `Overleaf/NeedToEdit.txt` (now
-self-contained, see the ImplementFIX-cleanup note above).
+Plus everything in `Overleaf/NeedToEdit_Baselines.txt` and
+`Overleaf/NeedToEdit.txt` (both self-contained, no external pointers).
+
+---
+
+## Reviewer response letter
+
+`ReviewerResponse/v1` is the original draft — **never edit it**.
+`ReviewerResponse/v1_new` holds every correction/addition on top of it:
+2 blank responses filled in (R1-C4, R1-C5), 2 stale responses rewritten
+with real data (R7-C5 multi-node blockchain, R4 blockchain gas bracket),
+plus a running log of manuscript-only fixes that didn't need
+response-letter changes. Read `v1_new`'s own header for the priority
+order — Exp09 is still the one true blocker.

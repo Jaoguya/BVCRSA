@@ -9,7 +9,25 @@ experiment data collected this session (Exp01-04, 10, 11 all real; Exp09
 still pending — see PRIORITY 0 below). Updated same day (later pass) after
 finding Table VI's data source was non-AWS (C3), the manuscript didn't
 compile (C5), and a systematic SD-vs-CI95 error-bar mismatch (C6) — see
-PART C for the full list of what changed in this second pass.
+PART C for the full list of what changed in this second pass. Updated
+again same day (third pass) after finding 7 places where the Performance
+Evaluation prose directly contradicted the manuscript's own embedded
+figures (C8) -- the largest single finding of the day.
+
+Also spot-checked (third pass) that the protocol/security fixes v1
+promises reviewers were actually applied to Overleaf/BVCRSA, not just
+described in NeedToEdit.txt -- given how many manuscript-vs-doc gaps
+turned up elsewhere today. Checked: R1-C1 gateway HMAC provisioning
+(present, line ~792), R7-C1/C2 gateway-committed-state completeness
+scoping (present, multiple occurrences), R3-6/7/8 leakage profile
+including user-side and gateway-side leakage (present, as
+L_Query/L_Access/L_GW/L_User equations rather than named subsections --
+same content, more formal notation than the recovered draft used). All
+three check out. Did not have time to spot-check every remaining
+paper-side item (R2-C1, R2-C6, R3-1..5, R3-9..12, R4-1, R4-3, R5-1..3,
+R7-C3) individually -- those are lower-risk since they're prose-only
+changes with no data to drift out of sync, unlike the experiment-tied
+claims that caused every issue found today.
 
 ================================================================================
 PRIORITY 0 — BLOCKS FINAL SUBMISSION, WAITING ON YOU
@@ -252,6 +270,61 @@ C7. ABSE-Range gap-fill (N=20,000/50,000/100,000) completed and integrated
   to stdout, so median_ms/min_ms/max_ms/raw_ms are blank for those 3 rows
   specifically (noted in the CSV's own `note` column and in SKILL.md).
   Does not affect any reviewer-response text directly.
+
+--------------------------------------------------------------------------------
+C8. THE BIG ONE: 7 places in the Performance Evaluation prose directly
+    contradicted the manuscript's own embedded (real) figures -- FIXED
+    directly in Overleaf/BVCRSA, all with real numbers pulled from the
+    actual CSVs, not estimated.
+--------------------------------------------------------------------------------
+  This was tracked as Overleaf/NeedToEdit_Baselines.txt item 12, flagged
+  [WAIT-FOR-RERUN] when the AWS rerun was still in progress, and never
+  actually finished once the rerun landed -- the figures got real data,
+  the prose interpreting them did not. Found by checking every "lowest/
+  highest/consistently achieves" claim against the CSV it's supposedly
+  describing:
+
+    - Trapdoor Gen: "0.9-2.2ms... BVCRSA exhibits the lowest" -> FALSE.
+      Real: 3.1-15.6ms; VC-KASE and Latt-IBEKS are both faster.
+    - Query Throughput: "BVCRSA consistently achieves the highest" ->
+      FALSE. Latt-IBEKS is ~65x faster. Also fixed: workload range
+      "100 to 10,000 queries" was wrong (real sweep is 5-50, capped by
+      Trinity's per-query cost).
+    - Query Processing, all 3 sweeps (vs_range, vs_N, vs_d): "remaining
+      lower than compared schemes" -> FALSE in every sweep, Latt-IBEKS
+      is faster throughout.
+    - Verification Overhead: "0.35-3.0ms" -> real 1.8-17.6ms; claimed
+      crossover with VC-KASE at |R_Q|~250 -> real crossover is ~50-100.
+    - Homomorphic Aggregation: "below 20ms" (already flagged elsewhere
+      as arithmetically impossible) -> real floor 53-76ms; the Naive
+      comparison numbers were also wrong (180ms-900ms vs real 2.4s-12.4s).
+    - Aggregation Strategy: 670.5x max speedup -> real 718.4x (minor
+      drift only, not a false-superlative case like the others).
+
+  FIX PATTERN, applied consistently: where BVCRSA is not actually
+  fastest, state the real ranking honestly and explain the gap via
+  CAPABILITY rather than delete or re-fabricate a "wins" claim.
+  Latt-IBEKS's speed comes from a disclosed reduced-parameter
+  instantiation (n=17, q=4093, understates its real cost) that doesn't
+  do policy-binding, verification, or aggregation-binding -- so a new
+  disclosure paragraph was added to "Baseline Configuration" (Section V)
+  covering this, since several of the fixes above now depend on the
+  reader knowing why Latt-IBEKS is unusually fast, and that disclosure
+  didn't exist in the manuscript before.
+
+  WHY THIS MATTERS FOR THE RESPONSE LETTER: R3-13 and R3-14 already
+  asked about internal alignment between reported numbers (query
+  processing vs aggregation durations; throughput vs per-query latency)
+  -- v1's existing responses to both (claiming the numbers are now
+  consistent) are STILL accurate for what they actually address
+  (measurement-scope separation). But a reviewer doing the same kind of
+  "does the text match the chart" check that R3 already demonstrated
+  they do would have found these 7 issues immediately, in the same
+  section, on a second pass. No specific v1 response needed new text
+  (none of R1-R7's comments directly asserted "BVCRSA is fastest" as
+  something to fix), but leaving these live would have manufactured a
+  brand-new, easily-caught credibility problem in the resubmission that
+  didn't exist in v1's response letter itself.
 
 ================================================================================
 EXPERIMENT STATUS -- what's actually left
