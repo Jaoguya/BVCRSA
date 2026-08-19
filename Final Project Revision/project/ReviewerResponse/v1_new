@@ -6,7 +6,10 @@ not listed here in v1 is still accurate and needs no action.
 
 Written 2026-08-19, after a full audit of Overleaf/BVCRSA against the real
 experiment data collected this session (Exp01-04, 10, 11 all real; Exp09
-still pending — see PRIORITY 0 below).
+still pending — see PRIORITY 0 below). Updated same day (later pass) after
+finding Table VI's data source was non-AWS (C3), the manuscript didn't
+compile (C5), and a systematic SD-vs-CI95 error-bar mismatch (C6) — see
+PART C for the full list of what changed in this second pass.
 
 ================================================================================
 PRIORITY 0 — BLOCKS FINAL SUBMISSION, WAITING ON YOU
@@ -101,10 +104,10 @@ v1 has "Response:" with nothing after it. Fill with:
    Primitive-Level Microbenchmarks subsection (Table [primitive_bench])
    reporting the mean +/- SD over 20 independent runs for the dominant
    operations underlying query processing: a single ABSE Test call
-   (2.078 +/- 0.074 ms), a single bilinear pairing (0.853 +/- 0.040 ms),
-   Merkle-proof verification (6.70 +/- 1.13 us), a single protected
-   bitmap-block operation (1.35 +/- 0.14 us), and Threshold EC-ElGamal
-   ciphertext addition (16.31 +/- 1.00 us). Together with the reported
+   (2.480 +/- 0.045 ms), a single bilinear pairing (1.010 +/- 0.035 ms),
+   Merkle-proof verification (7.75 +/- 1.04 us), a single protected
+   bitmap-block operation (1.19 +/- 0.14 us), and Threshold EC-ElGamal
+   ciphertext addition (12.18 +/- 1.17 us). Together with the reported
    operation counts per query configuration, this lets the total
    query-processing latency be reconstructed by hand from primitive
    costs and independently checked against Table [complexity]'s
@@ -179,6 +182,76 @@ C2. Known but NOT reviewer-visible: user_client.py still leaks K_sel (the
   which took ~20+ hours to run once already. Your call whether to fix it
   post-submission or before, but do not represent the code as matching the
   paper's key-distribution claim if anyone asks for it.
+
+--------------------------------------------------------------------------------
+C3. Table VI (primitive microbenchmarks) data provenance -- serious finding,
+    FIXED directly in Overleaf/BVCRSA (this is the correction that made
+    C's R1-C4 fill-in above change numbers):
+--------------------------------------------------------------------------------
+  The manuscript's Table VI numbers (2.078ms ABSE Test etc.) matched NONE
+  of the real data on disk. The most-recent-looking candidate
+  (CSV/exp10_primitive_table.csv, Aug 18) turned out to be measured on
+  `jzguyr.local` -- the local Windows PC, not AWS -- silently violating
+  the paper's own "every number comes from AWS" claim. Fixed by switching
+  to real AWS data (CSV/exp10_primitive_microbench__W3.csv,
+  ip-172-31-15-37 -- the same worker that produced Table V's Exp08
+  numbers, so both tables now trace to one physical instance). Full
+  writeup in MD/SKILL.md's status section, dated 2026-08-19.
+
+--------------------------------------------------------------------------------
+C4. Table V mislabeled "Estimated" when the values were real measured
+    data all along -- FIXED directly in Overleaf/BVCRSA:
+--------------------------------------------------------------------------------
+  Caption, subsection prose, and footnote all said "estimated"/"estimated
+  from the stated protocol-object sizes." The numbers were already real
+  (verified byte-for-byte against CSV/exp08_communication_cost.csv), just
+  mislabeled -- likely a leftover from before Exp08 ran. Now says
+  "Measured" throughout. No response-letter text needed since R2 Comment 5
+  and R1 Comment 7's existing v1 responses already correctly describe
+  these as measured; only the manuscript's own wording was wrong.
+
+--------------------------------------------------------------------------------
+C5. Manuscript did not compile -- every figure except one pointed at PNG
+    filenames in a folder (`all_figures/`) that did not exist anywhere.
+    FIXED: converted all 7 real-data figures to vector PDF in
+    `Overleaf/all_figures/`, fixed every `\includegraphics` reference, and
+    built `exp_combined_3panel.pdf` (Fig. 2), which previously had no
+    generating script at all ("hand-composited", per NeedToEdit.txt D1).
+--------------------------------------------------------------------------------
+  This was the D1/D2 defect from NeedToEdit.txt, not something introduced
+  this session -- just finally resolved. Separately, Fig. 7's caption
+  claimed error bars on panels (b)-(c) that don't exist in the plotting
+  code (Benchmark/06_Aggregation_Strategy/plot.py has no yerr/errorbar
+  call, and the summary CSV never retained per-point variance). Rather
+  than trigger an hours-long Exp06 rerun three days before the deadline,
+  the caption was corrected to stop claiming bars that aren't there
+  ("per-run variance is not plotted for this figure").
+
+--------------------------------------------------------------------------------
+C6. R2 Comment 2/8 error-bar audit: every figure was plotting a 95% CI
+    (1.96*SD/sqrt(n)) while every caption claimed "+/-1 SD" -- a real,
+    systematic mismatch. FIXED across all 6 figures with real error bars
+    (01, 02x3, 03, 04, 05, 07) plus the combined 3-panel: yerr switched
+    from ci95_ms to stdev_ms, and the auto-stamped caption text in
+    harness.py's save_figure() corrected from "95% CI" to "error bars
+    = +/-1 SD" so it's no longer just the hand-written captions matching
+    -- the auto-generated stamp on every figure matches too.
+--------------------------------------------------------------------------------
+  This makes v1's existing response to R2 Comment 2 (line 36, "added
+  corresponding error bars... removed the unsupported 'negligible'
+  statement") actually true now, where before it was aspirational text
+  not yet matched by the real plots. No response-letter change needed --
+  v1's wording already happens to describe the corrected state correctly.
+
+--------------------------------------------------------------------------------
+C7. ABSE-Range gap-fill (N=20,000/50,000/100,000) completed and integrated
+    into CSV/exp02_query_processing.csv and the regenerated
+    exp02_query_vs_N and combined-3-panel figures.
+--------------------------------------------------------------------------------
+  Caveat: the ad-hoc gap-fill script only logged mean/SD/CI95/matched-count
+  to stdout, so median_ms/min_ms/max_ms/raw_ms are blank for those 3 rows
+  specifically (noted in the CSV's own `note` column and in SKILL.md).
+  Does not affect any reviewer-response text directly.
 
 ================================================================================
 EXPERIMENT STATUS -- what's actually left

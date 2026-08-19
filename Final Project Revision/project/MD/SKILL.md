@@ -458,6 +458,46 @@ Not an issue on the AWS target.
 > `exp09_sensor_side_cost.csv` still has `env_host=DESKTOP-9RLOO3O` — a
 > Windows box, not the Raspberry Pi R1-C6 requires. Untouched this pass.
 >
+> **Fixed 2026-08-19 (doc-audit pass)**: three more problems found by
+> checking the manuscript against real data rather than trusting prior
+> claims.
+> 1. **The manuscript did not compile.** Every `\includegraphics` except
+>    the blockchain one pointed at PNG filenames in `all_figures/`, a
+>    directory that did not exist anywhere in the repo (the D1/D2 defect
+>    from `Overleaf/NeedToEdit.txt`, pre-existing, not introduced this
+>    session). Fixed: all 7 real-data figures converted to vector PDF via
+>    `rsvg-convert` into `Overleaf/all_figures/`, every `\includegraphics`
+>    reference corrected to the real filename, and `exp_combined_3panel.pdf`
+>    (Fig. 2, panels a/b/c = trapdoor-gen + query-vs-range + query-vs-N)
+>    built from scratch — it never had a generating script before, only a
+>    hand-composited file that was never actually committed.
+> 2. **Every figure with error bars was plotting a 95% CI while every
+>    caption claimed "±1 SD".** `yerr` was sourced from `ci95_ms`
+>    (`1.96·SD/√n`) in `Benchmark/{01,02,03,04,05,07}*/experiment.py` and
+>    the combined-panel script; captions said SD. Fixed: `yerr` switched
+>    to `stdev_ms`/`stdev_qps` in all 6 experiments' plot code, figures
+>    regenerated from the existing CSVs (no re-run — same real
+>    already-collected data, just replotted). `harness.py`'s
+>    `save_figure()` auto-stamp text also corrected from `"95% CI"` to
+>    `"error bars = ±1 SD"`, so the auto-generated caption line matches
+>    too, not just the hand-written captions. Fig. 7 (agg-strategy
+>    comparison, panels b–c) claimed error bars that don't exist in
+>    `06_Aggregation_Strategy/plot.py` at all (no `yerr`, no variance
+>    retained in the summary CSV) — caption corrected to stop claiming
+>    them rather than trigger an hours-long Exp06 rerun this close to the
+>    deadline.
+> 3. **Table V was mislabeled "Estimated"** in its caption, subsection
+>    prose, and footnote, despite the numbers being real measured data
+>    from Exp08 the whole time (verified byte-for-byte against
+>    `CSV/exp08_communication_cost.csv`). Relabeled "Measured" throughout.
+>
+> Exploratory only, **not referenced by the manuscript**: bolder/black
+> error-bar-marker copies and a per-scheme faceted small-multiples layout
+> for Exp01 exist under `Figures/bold_errorbars/`, made when SD visibility
+> was hard to judge on a shared log-scale axis. Not wired into
+> `Overleaf/BVCRSA` — purely a visual-comparison aid, safe to ignore or
+> delete.
+>
 > **Found 2026-08-19**: `CSV/exp10_primitive_table.csv` and
 > `CSV/exp10_reconciliation.csv` (both dated Aug 18 22:57, the ones
 > feeding Table VI / `tab:primitive_bench`) were measured on
