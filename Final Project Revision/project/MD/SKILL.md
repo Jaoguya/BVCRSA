@@ -498,6 +498,31 @@ Not an issue on the AWS target.
 > `Overleaf/BVCRSA` — purely a visual-comparison aid, safe to ignore or
 > delete.
 >
+> **Fixed 2026-08-19 (larger audit pass)**: closed
+> `Overleaf/NeedToEdit_Baselines.txt` item 12, which had been sitting as
+> `[WAIT-FOR-RERUN]` since the AWS rerun finished on 2026-08-18 without
+> anyone actually going back to do it. The figures/CSVs were real; the
+> **prose interpreting them was not** — it still described pre-rerun
+> numbers and, worse, asserted BVCRSA superlatives ("lowest", "highest",
+> "consistently achieves") that the manuscript's own embedded figures
+> now directly contradict. Found and fixed 7 instances across Trapdoor
+> Gen, all 3 Query Processing sweeps, Query Throughput, Verification
+> Overhead, and Homomorphic Aggregation — full list of before/after
+> numbers in `Overleaf/NeedToEdit_Baselines.txt` item 12. Pattern: where
+> BVCRSA is not actually fastest (Latt-IBEKS wins on raw latency/
+> throughput almost everywhere, VC-KASE wins on verification past
+> |R_Q|~100), the fix states the real ranking and explains the gap via
+> capability (policy-binding, verification, aggregation-readiness) that
+> the faster baseline doesn't provide, rather than deleting or
+> re-fabricating a "wins" claim. Also added the missing Latt-IBEKS
+> reduced-parameter disclosure to the "Baseline Configuration" paragraph
+> (`n=17, q=4093`, understates its real cost) since several of the above
+> fixes now depend on the reader knowing why Latt-IBEKS is unusually
+> fast. One editing mistake caught and fixed inline: an early draft of
+> the vs_range fix contained a self-contradicting clause and a
+> reference to a table that doesn't exist (`tab:query_latency_note`) —
+> corrected before this was reported as done.
+>
 > **Found 2026-08-19**: `CSV/exp10_primitive_table.csv` and
 > `CSV/exp10_reconciliation.csv` (both dated Aug 18 22:57, the ones
 > feeding Table VI / `tab:primitive_bench`) were measured on

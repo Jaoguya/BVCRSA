@@ -227,26 +227,41 @@ against a transaction's storage access list.
 
 
 --------------------------------------------------------------------------------
-12. [WAIT-FOR-RERUN] Every other Exp01-04 number in the prose and figures
+12. [DONE 2026-08-19] Every other Exp01-04 number in the prose and figures
     Section: V, Trapdoor Generation Time / Query Processing Time (all 3
     sweeps) / Query Throughput / Verification Overhead
 --------------------------------------------------------------------------------
-Once the current AWS rerun finishes: every specific millisecond figure
-quoted in these four subsections' prose (not just the two "consistently
-achieves" sentences in item 4) needs replacing with the real numbers, and
-every corresponding SVG figure needs regenerating from the new CSVs and
-re-embedding (SVG -> PDF via inkscape, per the project's existing
-convention).
+Done in a full doc-vs-CSV audit, not just the two "consistently achieves"
+sentences in item 4. Found FALSE superlative claims contradicted by the
+manuscript's own (real, already-embedded) figures, not just wrong
+figures:
+  - Trapdoor Gen: "0.9-2.2ms" -> real 3.12-15.58ms; "BVCRSA exhibits the
+    lowest" -> FALSE, VC-KASE and Latt-IBEKS are both faster.
+  - Query Throughput: "consistently achieves the highest" -> FALSE,
+    Latt-IBEKS is ~65x faster; workload range "100 to 10,000 queries" was
+    also wrong (real sweep is 5-50, capped by Trinity's per-query cost).
+  - Query Processing vs_range/vs_N/vs_d: "remaining lower than the
+    compared schemes" (all three sweeps) -> FALSE for Latt-IBEKS in
+    every sweep.
+  - Verification Overhead: "0.35-3.0ms" -> real 1.8-17.6ms; crossover
+    claimed at |R_Q|~250, real crossover is ~50-100.
+  - Homomorphic Aggregation: "<20ms" -> arithmetically impossible per
+    item 5, real floor ~53-76ms; Naive "180ms-900ms" -> real 2.43s-12.4s.
+  - Aggregation Strategy: 670.5x -> real max speedup 718.4x (minor drift,
+    not a false-superlative issue like the others).
+All corrected directly in Overleaf/BVCRSA with real numbers, honest
+rankings, and (new) a Latt-IBEKS reduced-parameter disclosure paragraph
+added to Baseline Configuration so the "Latt-IBEKS is fastest but understates
+its real cost" framing has something to point to. Pattern across every
+fix: state the real ranking, and where BVCRSA is not fastest, explain via
+capability (policy-binding, verification, aggregation-readiness) rather
+than hide or re-fabricate a "wins" claim -- consistent with this
+project's established strategy of not chasing fairness parity.
 
-Figures that do NOT need touching, because nothing that produces them
-changed this session (confirmed via git diff): Effect of Homomorphic
-Aggregation, Aggregation Strategy Comparison (670.5x), Aggregate-Recovery
-Scalability (BSGS), Communication Cost (already updated, item 1), Storage
-Overhead (asymptotic only, no figure). Leaving these untouched is
-deliberate -- see the "targeted revision vs. wholesale rewrite" reasoning
-from chat: a revision where only the experiments tied to the stated fix
-move, and everything else stays byte-identical, is what survives a
-reviewer who's already primed to distrust changed numbers.
+No figures needed regenerating -- the SVGs/PDFs already had real data
+(that part of the original "WAIT-FOR-RERUN" concern was resolved earlier
+this session); only the interpreting prose had never been reconciled
+against the figures sitting right next to it.
 
 ================================================================================
   END

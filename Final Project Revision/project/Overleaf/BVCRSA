@@ -2411,6 +2411,7 @@ resistance relative to the gateway-committed state.
 
 
 \subsection{Security Scope and Limitations}
+\label{sec:limitations}
 
 BVCRSA authenticates query results relative to the state constructed
 by the honest-but-curious, non-colluding Edge Gateway. Because the
@@ -2838,12 +2839,25 @@ Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
 Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} were independently
 reimplemented following their published algorithms and parameters,
 with adaptations only for the common testbed. All schemes used the
-same datasets, workloads, hardware, and software, with approximately
-comparable security levels where supported. Comparisons include only
-functionality provided by each baseline; unsupported capabilities
+same datasets, workloads, hardware, and software. Comparisons include
+only functionality provided by each baseline; unsupported capabilities
 were not emulated. Equivalent protocol stages were measured under
 identical conditions, excluding scheme-specific preprocessing,
-communication, and blockchain costs unless stated otherwise.
+communication, and blockchain costs unless stated otherwise. Exact
+parameter parity was not achievable for every baseline, and we
+disclose the resulting biases explicitly rather than claim uniform
+security levels. Latt-IBEKS is instantiated with lattice dimension
+$n=17$ and modulus $q=4093$, smaller than a deployment-grade LWE
+parameterization, which \emph{understates} its measured cost relative
+to a production instantiation. VC-KASE is implemented
+with a prime-order group instantiated by modular exponentiation rather
+than a bilinear pairing for its core matching operation, while its
+verification cost is measured using real BLS12-381 pairings. Trinity
+is evaluated as Trinity-II. Because Latt-IBEKS in particular is
+therefore measured under a lighter-weight, non-deployment
+parameterization, its raw latency and throughput figures in the
+following subsections should be read as a lower bound on its real
+cost, not as a directly comparable operating point.
 
 Query-processing latency includes canonical-node decomposition,
 ABSE $\mathsf{Test}$, authenticated bitmap reconstruction, and
@@ -2922,13 +2936,19 @@ Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}.
 As the number of queried dimensions increases, all schemes
 incur higher latency because additional range predicates
 must be encoded. BVCRSA increases from approximately
-0.9~ms to 2.2~ms for one to five dimensions, reflecting
+3.1~ms to 15.6~ms for one to five dimensions, reflecting
 the growth in canonical-node decomposition and the
-corresponding number of ABSE tokens. The baseline schemes
-incur higher overhead due to their respective secure range
-encoding, pairing/exponentiation, lattice, or verifiable-token
-operations. Overall, BVCRSA exhibits the lowest measured
-trapdoor-generation latency across the evaluated dimensions.
+corresponding number of ABSE tokens. This is markedly faster
+than Trinity and ABSE-Range, whose secure range encoding and
+LSSS-based policy matching incur substantially higher per-token
+cost. VC-KASE and Latt-IBEKS post lower raw trapdoor-generation
+latency, since their tokens encode only a keyword match rather
+than a policy-bound, context-bound canonical-range cover; BVCRSA's
+larger trapdoor is the cost of packing the range decomposition,
+attribute-policy binding, and epoch/query context needed for the
+downstream conjunctive matching, bitmap-authorized aggregation,
+and verification stages that these two baselines do not provide
+(Table~\ref{tab:complexity_comparison}).
 
 \subsubsection{\textbf{Query Processing Time}}
 
@@ -2942,27 +2962,32 @@ client-side verification, network communication, and blockchain
 access are excluded and evaluated separately.
 
 Figure~\ref{fig:combined_3_panel}(b) compares query latency
-as selectivity increases from 10\% to 80\%. The latency of
-BVCRSA increases gradually as more canonical nodes and bitmap
-positions are processed, while remaining lower than the
-compared schemes across the evaluated range. This behavior
-reflects the hierarchical range-cover organization and
-word-parallel bitmap processing, which reduce the
-candidate-processing overhead following ABSE matching.
-Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
-Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16} exhibit
-higher processing costs due to their respective cryptographic
-search and index-evaluation procedures.
+as selectivity increases from 10\% to 80\%. BVCRSA increases
+from approximately $1.6$~ms to $11.8$~ms as more canonical
+nodes and bitmap positions are processed, remaining faster
+than VC-KASE, Trinity, and ABSE-Range across the evaluated
+range; this reflects the hierarchical range-cover organization
+and word-parallel bitmap processing, which reduce the
+candidate-processing overhead following ABSE matching relative
+to their respective cryptographic search and index-evaluation
+procedures. Latt-IBEKS posts lower raw latency ($45$--$59$~ms
+across the same range), consistent with its reduced-parameter
+instantiation disclosed above, which measures a lighter-weight
+operation than the policy-bound, verification- and
+aggregation-ready match that BVCRSA performs.
 
 Figure~\ref{fig:combined_3_panel}(c) evaluates scalability
-with database size. BVCRSA exhibits increasing latency as
-the searchable index grows, consistent with the exhaustive
-$O(N_um_c)$ ABSE matching stage followed by $O(N/w)$
-word-parallel bitmap processing over the matched canonical
-nodes. Nevertheless, its growth remains lower than that of
-the compared schemes, demonstrating the benefit of combining
-hierarchical range decomposition with efficient bitmap-based
-candidate evaluation.
+with database size. BVCRSA latency grows from approximately
+$0.29$~ms to $41.7$~ms as $N$ increases from $10^3$ to $10^5$,
+consistent with the exhaustive $O(N_um_c)$ ABSE matching stage
+followed by $O(N/w)$ word-parallel bitmap processing over the
+matched canonical nodes. This growth remains substantially
+lower than VC-KASE, ABSE-Range, and Trinity across the
+evaluated range. As in panel (b), Latt-IBEKS's reduced-parameter
+instantiation yields lower raw latency; the gap between BVCRSA
+and Latt-IBEKS should be read in light of the parameterization
+disclosure in the Baseline Configuration paragraph above rather
+than as a direct efficiency comparison.
 
 \begin{figure}[t]
 \centering
@@ -2974,23 +2999,28 @@ $\pm1$ standard deviation.}
 \end{figure}
 
 Figure~\ref{fig:query_vs_dimension} evaluates the effect of
-increasing the number of queried dimensions. BVCRSA latency
-increases as additional predicates generate more canonical
-nodes, ABSE $\mathsf{Test}$ operations, and conjunctive bitmap
-intersections. Despite this additional workload, BVCRSA
-exhibits more moderate growth than the compared schemes,
-reflecting the efficiency of its range-cover and bitmap-based
-query evaluation. In particular, Latt-IBEKS~\cite{ref28} and
-VC-KASE~\cite{ref16} incur higher processing overhead due to
-their more computationally intensive cryptographic search
-operations.
+increasing the number of queried dimensions, with BVCRSA
+ranging from approximately $2.9$~s to $3.3$~s as $d$ increases
+from 1 to 5. All three schemes remain relatively flat across
+this range, indicating that the number of queried dimensions
+is not the dominant cost driver at fixed $N$; index size and
+query selectivity (Fig.~\ref{fig:combined_3_panel}(b)--(c))
+have substantially larger effects. VC-KASE~\cite{ref16} incurs
+higher processing overhead than BVCRSA throughout, consistent
+with its pairing-based matching cost. Latt-IBEKS~\cite{ref28}
+posts lower raw latency, again reflecting the reduced-parameter
+instantiation disclosed above rather than a more efficient
+matching operation.
 
 
 \subsubsection{\textbf{Query Throughput}}
 
 This experiment evaluates query-processing scalability with
-$N=10{,}000$ records as the workload increases from 100 to
-10,000 queries. The processing scope is identical to that of
+$N=10{,}000$ records as the workload increases from 5 to 50
+queries; the upper bound is set by Trinity's per-query cost,
+which makes larger batch sizes impractical to repeat over
+independent runs at this workload. The processing scope is
+identical to that of
 Experiment~2, including all required ABSE $\mathsf{Test}$
 operations, authenticated bitmap reconstruction, and conjunctive
 bitmap evaluation. Aggregation, client-side verification, network
@@ -3026,19 +3056,24 @@ indicate $\pm1$ standard deviation.}
 \end{figure}
 
 Figure~\ref{fig:query_throughput} compares BVCRSA with
-Trinity~\cite{ref26}, ABSE-Range~\cite{ref27},
-Latt-IBEKS~\cite{ref28}, and VC-KASE~\cite{ref16}.
+Trinity~\cite{ref26} and Latt-IBEKS~\cite{ref28}; ABSE-Range and
+VC-KASE are excluded from this experiment because neither
+implements a numeric range predicate in its native matching
+operation (see the Baseline Configuration paragraph above).
 Throughput decreases with increasing workload because concurrent
 query execution introduces greater cryptographic-processing,
-scheduling, and resource-contention overhead. BVCRSA consistently
-achieves the highest throughput owing to its hierarchical range-cover
-organization and efficient word-parallel bitmap evaluation after
-ABSE matching. Trinity~\cite{ref26} and ABSE-Range~\cite{ref27}
-incur greater repeated search and index-evaluation costs, whereas
-Latt-IBEKS~\cite{ref28} and VC-KASE~\cite{ref16} are dominated by
-more expensive lattice- and pairing-based operations, respectively.
-Overall, the results demonstrate that BVCRSA sustains higher
-query-processing throughput as the workload increases.
+scheduling, and resource-contention overhead. BVCRSA substantially
+outperforms Trinity, whose spatio-temporal encoding and
+quotient-filter evaluation incur far greater per-query cost.
+Latt-IBEKS, in contrast, achieves higher raw throughput than
+BVCRSA: its disjunctive/conjunctive keyword matching over a
+reduced-parameter lattice is a lighter-weight operation than
+BVCRSA's canonical bitmap intersection, which additionally
+produces an authenticated, aggregation-ready result set (bound
+to Merkle-verifiable bitmap blocks and selected aggregation
+entries) rather than a bare match decision. This capability
+difference, not raw per-query cost, is the basis for comparison
+across Table~\ref{tab:complexity_comparison}.
 
 \paragraph*{Discussion on Large-Scale Scalability.}
 Although the prototype evaluation is limited to $N=10^5$ records,
@@ -3085,20 +3120,25 @@ indicate $\pm1$ standard deviation.}
 
 Figure~\ref{fig:verification_overhead} shows that BVCRSA
 verification latency increases approximately linearly from
-$0.35$~ms to $3.0$~ms as $|R_Q|$ increases. This growth
+$1.8$~ms to $17.6$~ms as $|R_Q|$ increases. This growth
 reflects verification of the returned aggregation entries
 and Merkle multi-proof together with homomorphic ciphertext
 recomputation; blockchain-state verification adds only
 constant overhead. Trinity~\cite{ref26} increases from
-approximately $1.4$~ms to $13.6$~ms due to per-result
+approximately $2.3$~ms to $22.3$~ms due to per-result
 authentication, whereas VC-KASE~\cite{ref16} remains near
-$1.8$~ms because its verification is dominated by a fixed
-number of pairing operations. BVCRSA therefore achieves the
-lowest verification latency for $|R_Q|\lesssim250$ and,
-although it exceeds VC-KASE for larger result sets, remains
-substantially faster than Trinity while additionally
-supporting verifiable encrypted aggregation and
-blockchain-assisted query-state verification.
+$2.2$~ms because its verification is dominated by a fixed
+number of pairing operations rather than growing with
+$|R_Q|$. BVCRSA is consistently faster than Trinity across
+the evaluated range, but VC-KASE's near-constant cost
+overtakes BVCRSA already for small result sets
+($|R_Q|\gtrsim100$), since BVCRSA's per-record recomputation
+of the homomorphic aggregate grows with $|R_Q|$ where
+VC-KASE's fixed-size verification does not. BVCRSA's larger
+verification cost reflects strictly more work: it additionally
+verifies the aggregation Merkle multi-proof and independently
+recomputes $CT_{\mathrm{sum}}$ and $CT_{\mathrm{count}}$,
+neither of which VC-KASE's verification supports.
 
 \subsubsection{\textbf{End-to-End Communication Overhead}}
 
@@ -3146,20 +3186,24 @@ error bars indicate $\pm1$ standard deviation.}
 
 Figure~\ref{fig:ablation_aggregation} compares the query
 execution time as the number of matched records increases.
-The Naive approach exhibits an almost linear increase,
-rising from approximately 180~ms to nearly 900~ms because
-every matched ciphertext must be transmitted and processed
-individually by the user. In contrast, BVCRSA maintains
-execution times below 20~ms across all workloads, with only
-a modest increase as the number of matched records grows.
-This improvement is achieved by performing Threshold
-EC-ElGamal aggregation directly over the authenticated
-aggregation entries selected by the bitmap filter, requiring
-only compact aggregate ciphertexts and verification proofs
-to be returned. Consequently, BVCRSA significantly reduces
-communication and client-side processing overhead while
-preserving verifiable encrypted aggregation, making it well
-suited for large-scale IIoT analytics.
+The Naive approach exhibits an almost linear increase, rising
+from approximately 2.43~s to 12.40~s because every matched
+ciphertext requires its own threshold decryption. In contrast,
+BVCRSA's compact-aggregate arm rises only from approximately
+52.7~ms to 66.2~ms, a floor set by the two threshold decryptions
+(SUM and COUNT) it always performs regardless of $|R_Q|$; the
+complete verifiable protocol, which additionally returns and
+verifies every selected aggregation entry and its Merkle
+multi-proof, adds a modest overhead on top (54.6--76.0~ms). This
+improvement is achieved by performing Threshold EC-ElGamal
+aggregation directly over the authenticated aggregation entries
+selected by the bitmap filter, requiring only two threshold
+decryptions regardless of $|R_Q|$ rather than one per matched
+record. Consequently, BVCRSA reduces aggregation latency by
+roughly 46--187$\times$ over the naive approach across the
+evaluated range, while preserving verifiable encrypted
+aggregation, making it well suited for large-scale IIoT
+analytics.
 
 \subsubsection{\textbf{Aggregation Strategy Comparison}}
 
@@ -3197,7 +3241,7 @@ Figure~\ref{fig:agg_strategy_comparison}(a) shows that the
 conventional strategy requires $|R_Q|$ threshold decryptions,
 whereas BVCRSA requires only two, independent of the result size.
 Accordingly, Fig.~\ref{fig:agg_strategy_comparison}(b) shows much
-slower latency growth for BVCRSA, yielding up to a $670.5\times$
+slower latency growth for BVCRSA, yielding up to a $718.4\times$
 reduction at the largest workload. This trend is consistent with
 the cost derivation in Table~IV: BVCRSA performs $O(r)$ lightweight
 EC-point additions followed by a constant number of threshold
