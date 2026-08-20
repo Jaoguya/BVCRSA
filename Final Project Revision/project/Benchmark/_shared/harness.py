@@ -178,7 +178,7 @@ def save_figure(fig, filename, runs=None):
             "Raster screenshots were explicitly rejected — R1-C8.")
     if runs is not None:
         # R2-C8: the run count must appear on the figure, not only in the text.
-        fig.text(0.99, 0.01, f"mean of {runs} independent runs, error bars = ±1 SD",
+        fig.text(0.99, 0.01, f" {runs} ",
                  ha="right", va="bottom", fontsize=8, style="italic", alpha=0.7)
     path = os.path.join(FIG_DIR, filename)
     fig.tight_layout()
