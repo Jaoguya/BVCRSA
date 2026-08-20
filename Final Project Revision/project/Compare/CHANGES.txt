@@ -1,0 +1,472 @@
+================================================================================
+BVCRSA - overleaflast vs response : LIST OF REQUIRED EDITS
+Generated: 2026-08-20
+Reference file : Final Project Revision/project/Compare/overleaflast (3576 lines)
+Baseline       : Final Project Revision/project/Compare/response
+
+APPLY EDITS FROM BOTTOM TO TOP (P3 -> P0) SO LINE NUMBERS DO NOT SHIFT.
+
+Summary: 19 edits in the manuscript + 6 edits in the response letter
+  P0  2 edits - LaTeX will NOT COMPILE
+  P1  6 edits - manuscript does not match what the response promised
+  P2  3 edits - notation consistency (Reviewer 4 Comment 1 claimed done)
+  P3  8 edits - proofreading (Reviewer 4 Comment 3 claimed done)
+================================================================================
+
+
+################################################################################
+# P0 - COMPILE ERRORS (fix these first)
+################################################################################
+
+--------------------------------------------------------------------------------
+[1] LINE 777-778   broken \xleftarrow and unescaped set braces
+--------------------------------------------------------------------------------
+OLD:
+\xleftarrow{$}
+{0,1}^{\lambda},
+
+NEW:
+\xleftarrow{\$}
+\{0,1\}^{\lambda},
+
+
+--------------------------------------------------------------------------------
+[2] LINE 2062   underscore lost in copy-paste (renders as L * GW)
+--------------------------------------------------------------------------------
+OLD:
+$\mathcal L*{\mathrm{GW}}$.
+
+NEW:
+$\mathcal L_{\mathrm{GW}}$.
+
+
+
+################################################################################
+# P1 - MANUSCRIPT DOES NOT MATCH THE RESPONSE LETTER
+################################################################################
+
+--------------------------------------------------------------------------------
+[3] LINE 1335-1336, 1350, and insert after 1357
+    Reviewer 3 Comment 1.
+    The cloud CANNOT compute B_Q* : it only holds the masked blocks
+    B~_{u,b} = B_u XOR PRG(F(K_u,.)) and has no K_u (encapsulated under P_u).
+    This also contradicts the Leakage Profile at line 1836-1839 which states
+    the cloud "does not directly recover {B_u} or B_Q*".
+    Phase 4 Step 4 (line 1385), Theorem 5 (line 2200) and Theorem 6 (line 2276)
+    ALREADY say the GATEWAY validates S_Q = S_Q*, so make Step 3 consistent.
+--------------------------------------------------------------------------------
+OLD (line 1335-1336):
+Before aggregation, the cloud independently reconstructs the
+conjunctive bitmap from the authenticated nodes bound to $(e_q,qid)$:
+
+NEW:
+Before aggregation, the Edge Gateway---which holds
+$K_{\mathrm{sel}}$ and can therefore derive every node key
+$K_u=F(K_{\mathrm{sel}},D_j\parallel u)$---independently unmasks the
+committed bitmap blocks of the matched nodes bound to $(e_q,qid)$ and
+reconstructs the authorized conjunctive bitmap:
+
+- - -
+OLD (line 1350):
+It proceeds only if
+
+NEW:
+The gateway releases $\mathcal S_Q^{*}$ to the cloud only if
+
+- - -
+INSERT after line 1357 (after "otherwise, the aggregation request is rejected."):
+
+The cloud therefore never obtains the plaintext bitmaps
+$\{B_u\}$ or $B_Q^{*}$; it aggregates only over the
+gateway-validated position set, consistent with
+$\mathcal L_{\mathrm{BVCRSA}}$.
+
+>>> ALSO UPDATE response line 74 (see RESPONSE FILE section below).
+
+
+--------------------------------------------------------------------------------
+[4] INSERT BETWEEN LINE 707 AND 708 (before "\paragraph*{Step 2: Threshold...")
+    Reviewer 1 Comment 2 / Reviewer 3 Comments 4 and 5.
+    The response says three times "We have revised Phase 1, Step 1 to formulate
+    the ABSE layer as a composition of (i)... and (ii)...", but Phase 1 Step 1
+    currently contains only ABSE.Setup + ABSE.KeyGen. The composition text only
+    exists in Preliminaries (line 428-470) and Security Model (line 1717-1726).
+--------------------------------------------------------------------------------
+INSERT:
+
+Concretely, the ABSE layer of BVCRSA is a composition of two
+components. \emph{(i)} A policy-controlled searchable-encryption
+component $(\mathsf{Index},\mathsf{Token},\mathsf{Test})$ providing
+adaptive keyword privacy, randomized context-bound tokens, policy
+enforcement, and user-collusion resistance; its tokens are bound to
+$(e_q,qid)$. \emph{(ii)} An attribute-based KEM
+$(\mathsf{Enc},\mathsf{Dec})$ providing IND-CPA encapsulated-key
+confidentiality and collusion-resistant policy enforcement for node
+and record keys; node envelopes are bound to the node version $v_u$
+and record envelopes to the ingestion epoch $e_i$. Both components are
+instantiated over BN254 as specified in Section~III. All security
+claims in Section~V are conditional on these component properties
+rather than on a monolithic ABSE primitive.
+
+
+--------------------------------------------------------------------------------
+[5] LINE 433 and LINE 2821   curve name: response says BN254, paper says BN128,
+    but line 750 says "BN254-compatible" -> paper contradicts itself.
+    (The bn128 curve identifier in py_ecc IS the BN254 curve; pick one name.)
+--------------------------------------------------------------------------------
+OLD (line 433):
+BN128. Its interface is
+
+NEW:
+BN254. Its interface is
+
+- - -
+OLD (line 2821):
+\texttt{py\_ecc} over BN128 for attribute-based searchable
+
+NEW:
+\texttt{py\_ecc} over BN254 (the \texttt{bn128} curve identifier in
+\texttt{py\_ecc}) for attribute-based searchable
+
+- - -
+LINE 750 "a BN254-compatible hash-to-group function $H_g$" -> LEAVE AS IS.
+
+
+--------------------------------------------------------------------------------
+[6] LINE 2092   Theorem 4 uses the wrong ABSE.Dec context argument.
+    Phase 2 (line 1300) and Phase 4 (line 1307) use v_u, Theorem 4 uses e_q.
+--------------------------------------------------------------------------------
+OLD:
+\mathsf{ABSE.Dec}(SK_{\mathcal A},C_u^K,e_q).
+
+NEW:
+\mathsf{ABSE.Dec}(SK_{\mathcal A},C_u^K,v_u).
+
+
+--------------------------------------------------------------------------------
+[7] LINE 3128   Reviewer 2 Comment 7 asked about "Figs. 6 AND 7".
+    The paper states the (3,5)/P-256 config for Fig. 7 (line 3163) and
+    Fig. 8 (line 3204) but NOT for Fig. 6.
+--------------------------------------------------------------------------------
+OLD:
+records increases from 100 to 500. We compare three configurations:
+
+NEW:
+records increases from 100 to 500. All configurations use the same
+$(t,n)=(3,5)$ Threshold EC-ElGamal implementation over NIST P-256
+specified in Phase~5. We compare three configurations:
+
+
+--------------------------------------------------------------------------------
+[8] LINE 3188-3190   Reviewer 2 Comment 6.
+    The response says "Figure 7 is now tied directly to the aggregation cost in
+    Table IV", but the Fig. 7 discussion contains NO \ref to Table IV at all.
+--------------------------------------------------------------------------------
+OLD:
+latency growth for BVCRSA, consistent with its $O(r)$ EC-point
+additions followed by a constant number of threshold decryptions,
+compared with per-result threshold decryption in the conventional
+
+NEW:
+latency growth for BVCRSA. This is consistent with the aggregation
+term of the BVCRSA query-processing bound in
+Table~\ref{tab:complexity_comparison}, namely $O(r)$ EC-point
+additions followed by a constant number of threshold decryptions,
+compared with per-result threshold decryption in the conventional
+
+>>> DECISION NEEDED: Table IV (line 2508-2575) has only the columns
+    Index Construction / Trapdoor Generation / Query Processing / Verification.
+    It has NO aggregation cost entry. To match the response 100 percent, add an
+    "Aggregation" column:
+        BVCRSA        : O(r T_AHE + 2 T_TDec)
+        Conventional  : O(r T_TDec)
+    If you do not want to widen the table, the NEW text above is the minimum
+    acceptable fix (it points at the O(r) term that is already in Table IV).
+
+
+
+################################################################################
+# P2 - NOTATION CONSISTENCY (Reviewer 4 Comment 1 claimed this was done)
+################################################################################
+
+--------------------------------------------------------------------------------
+[9] LINE 1722-1724   e_c appears ONLY here; the rest of the paper uses e_q.
+    Also fixes the epoch-vs-version mismatch flagged in edit [6].
+--------------------------------------------------------------------------------
+OLD:
+enforcement. Query tokens are bound to $(e_c,qid)$, whereas
+encapsulated node and record keys are bound to their corresponding
+epoch $e_c$. The security claims below are conditional on these
+
+NEW:
+enforcement. Query tokens are bound to $(e_q,qid)$, whereas
+encapsulated node keys are bound to their node version $v_u$ and
+record keys to their ingestion epoch $e_i$. The security claims below
+are conditional on these
+
+
+--------------------------------------------------------------------------------
+[10] SIX LOCATIONS   \mathcal P_i is used for BOTH the record access policy
+     (Table II, line 629) AND the sensor packet. Rename the PACKET only.
+     Keep \mathcal P_i for the policy everywhere else.
+--------------------------------------------------------------------------------
+LINE 885    OLD:  \mathcal P_i
+            NEW:  \mathcal K_i
+
+LINE 890    OLD:  (\mathsf{enc}(\mathcal P_i\setminus\{Tag_i\})).
+            NEW:  (\mathsf{enc}(\mathcal K_i\setminus\{Tag_i\})).
+
+LINE 897    OLD:  The gateway accepts $\mathcal P_i$ only if
+            NEW:  The gateway accepts $\mathcal K_i$ only if
+
+LINE 1886   OLD:  \mathsf{enc}(\mathcal P_i\setminus\{Tag_i\})
+            NEW:  \mathsf{enc}(\mathcal K_i\setminus\{Tag_i\})
+
+LINE 1890   OLD:  The gateway accepts $\mathcal P_i$ only if
+            NEW:  The gateway accepts $\mathcal K_i$ only if
+
+LINE 1895   OLD:  \mathsf{enc}(\mathcal P_i\setminus\{Tag_i\}),Tag_i
+            NEW:  \mathsf{enc}(\mathcal K_i\setminus\{Tag_i\}),Tag_i
+
+Do NOT change line 866, 1224, 1227-1228, 1692, 1790, 1863, 2072, 2101, 2109,
+2120, 2130, 2266 - those are the policy, which correctly stays \mathcal P_i.
+
+
+--------------------------------------------------------------------------------
+[11] LINE 2476   Table III (Cost Analysis Notations) is missing m_p, n_b and r,
+     all three of which are used in Table IV (line 2550, 2565, 2569).
+     Also |R_Q| and r are two names for the same quantity.
+--------------------------------------------------------------------------------
+OLD:
+$|R_Q|$ & Number of matched records \\
+
+NEW:
+$|R_Q|,r$ & Number of matched (selected) records, $r=|\mathcal S_Q|$ \\
+$m_p$ & Number of canonical-node paths updated per record \\
+$n_b$ & Number of bitmap blocks per canonical node \\
+
+
+
+################################################################################
+# P3 - PROOFREADING (Reviewer 4 Comment 3 claimed a full pass was done)
+################################################################################
+
+--------------------------------------------------------------------------------
+[12] LINE 165   duplicated words
+--------------------------------------------------------------------------------
+OLD:
+primarily optimize encrypted retrieval encrypted retrieval and generally do not
+
+NEW:
+primarily optimize encrypted retrieval and generally do not
+
+
+--------------------------------------------------------------------------------
+[13] LINE 603   "Table Table~\ref" + grammar
+--------------------------------------------------------------------------------
+OLD:
+This section presents the cryptographic process of our proposed scheme. It consists of five phases as follows. To ease of understanding, Table Table~\ref{tab:notation} summarizes the principal notations used
+
+NEW:
+This section presents the cryptographic process of our proposed scheme. It consists of five phases as follows. For ease of understanding, Table~\ref{tab:notation} summarizes the principal notations used
+
+
+--------------------------------------------------------------------------------
+[14] LINE 2457   missing space after period
+--------------------------------------------------------------------------------
+OLD:
+representative schemes.The analysis focuses
+
+NEW:
+representative schemes. The analysis focuses
+
+
+--------------------------------------------------------------------------------
+[15] LINE 3072   hardcoded table number instead of \ref
+--------------------------------------------------------------------------------
+OLD:
+Table~IV provides an analytical basis for larger IIoT workloads.
+
+NEW:
+Table~\ref{tab:complexity_comparison} provides an analytical basis for
+larger IIoT workloads.
+
+
+--------------------------------------------------------------------------------
+[16] LINE 3325   missing space / paragraph break after period
+--------------------------------------------------------------------------------
+OLD:
+outsourced IIoT analytics.Future work will investigate privacy-preserving indexed ABSE lookup
+
+NEW:
+outsourced IIoT analytics.
+
+Future work will investigate privacy-preserving indexed ABSE lookup
+
+
+--------------------------------------------------------------------------------
+[17] LINE 3058   Reviewer 2 Comment 8: caption wording inconsistent.
+     All 7 other captions say "20 independent runs"; only Fig. 4 says "20 runs".
+--------------------------------------------------------------------------------
+OLD:
+Results show the mean over 20 runs; error bars indicate
+
+NEW:
+Results show the mean over 20 independent runs; error bars indicate
+
+
+--------------------------------------------------------------------------------
+[18] LINE 2836-2837   Reviewer 1 Comment 5 / Reviewer 3 Comment 15.
+     Setup says only the query-scalability experiment reaches N=10^5, but
+     Table V (line 2699-2704) also reports measured communication at N=10^5.
+--------------------------------------------------------------------------------
+OLD:
+and $d=1$--5 queried dimensions; only the query-scalability
+experiment extended to $N=10^5$. ABSE-based experiments used
+
+NEW:
+and $d=1$--5 queried dimensions; only the query-scalability and
+communication-overhead experiments extended to $N=10^5$.
+ABSE-based experiments used
+
+
+--------------------------------------------------------------------------------
+[19] LINE 186-195   DELETE THIS WHOLE PARAGRAPH.
+     It duplicates the adopted-vs-novel paragraph at line 212-223, which is the
+     one that was quoted verbatim in the response to Reviewer 2 Comment 1.
+     Two near-identical paragraphs sitting 20 lines apart looks careless.
+--------------------------------------------------------------------------------
+DELETE:
+Essentially, BVCRSA does not introduce new underlying cryptographic
+primitives. It adopts established building blocks, including
+policy-controlled searchable encryption, attribute-based key
+encapsulation, Threshold EC-ElGamal, AES-GCM, Merkle trees,
+and blockchain anchoring. Its novelty lies in the system-level
+constructions that integrate these primitives: the authenticated
+hierarchical range-cover index with protected block-partitioned
+bitmaps, bitmap-aware verifiable encrypted aggregation, and
+VQSA for binding searchable, bitmap, and aggregation states
+within a unified authenticated query workflow.
+
+KEEP the paragraph at line 212-223 that begins:
+"BVCRSA adopts established cryptographic primitives, including
+searchable encryption, attribute-based key encapsulation, ..."
+
+
+
+################################################################################
+# EDITS TO THE RESPONSE LETTER ITSELF (Compare/response)
+# Math symbols were lost when the text was pasted; fill them in before submitting.
+################################################################################
+
+--------------------------------------------------------------------------------
+[R1] response LINE 7  (Reviewer 1, Comment 2)
+--------------------------------------------------------------------------------
+OLD:
+providing , , and , and (ii) an attribute-based KEM providing  and  for node- and record-key protection.
+
+NEW:
+providing Index, Token, and Test, and (ii) an attribute-based KEM providing Enc and Dec for node- and record-key protection.
+
+
+--------------------------------------------------------------------------------
+[R2] response LINE 26  (Reviewer 1, Comment 6)
+--------------------------------------------------------------------------------
+OLD:
+The complete procedure requires approximately  ms per recordand produces 376 B of serialized cryptographic output
+
+NEW:
+The complete procedure requires approximately 72.67 ms per record and produces 376 B of serialized cryptographic output
+
+
+--------------------------------------------------------------------------------
+[R3] response LINE 47  (Reviewer 2, Comment 3)
+--------------------------------------------------------------------------------
+OLD:
+A single ABSE , for example, requires  ms.
+
+NEW:
+A single ABSE Test, for example, requires 2.480 +- 0.045 ms.
+
+
+--------------------------------------------------------------------------------
+[R4] response LINE 51  (Reviewer 2, Comment 4)
+--------------------------------------------------------------------------------
+OLD:
+BVCRSA index construction requires O(Nmplog nb + nunb + N log N), while online query processing requires while online query processing requires O(mcNu + U|Q| N/w + r).
+
+NEW:
+BVCRSA index construction requires O(N mp log nb + Nu nb + N log N), while online query processing requires O(mc Nu + |UQ| N/w + r).
+
+(note: the old text also wrote "nunb" where Table IV has "N_u n_b", and
+ "U|Q|" where Table IV has "|U_Q|")
+
+
+--------------------------------------------------------------------------------
+[R5] response LINE 74  (Reviewer 3, Comment 1)  -- pairs with manuscript edit [3]
+--------------------------------------------------------------------------------
+OLD:
+We have revised Phase 5 so that the cloud independently reconstructs the authorized conjunctive bitmap BQ* from the authenticated bitmap state associated with the valid (eq,qid) query and derives the expected position set SQ*.
+
+NEW:
+We have revised Phase 4 so that the Edge Gateway, which holds K_sel and can therefore derive every node key, independently reconstructs the authorized conjunctive bitmap BQ* from the authenticated bitmap state associated with the valid (eq,qid) query and derives the expected position set SQ*. The cloud aggregates only over this gateway-validated position set and never obtains the plaintext bitmaps.
+
+
+--------------------------------------------------------------------------------
+[R6] response LINES 79 and 83  (Reviewer 3, Comments 4 and 5)  -- pairs with [5]
+--------------------------------------------------------------------------------
+Both lines say "The implementation setting over BN254".
+Keep BN254 ONLY IF you applied manuscript edit [5] (BN128 -> BN254).
+If you instead standardise the manuscript on BN128, change both response
+occurrences of BN254 to BN128.
+
+Also note: the response says three times "We have revised Phase 1, Step 1".
+That is only true after manuscript edit [4] is applied.
+
+
+################################################################################
+# ITEMS VERIFIED AS CORRECT - NO ACTION NEEDED
+################################################################################
+
+R1-C1  gateway receives {K_HMAC^(i)}          line 762-770    OK
+R1-C3  verification 1.7 -> 17.5 ms            line 3113-3116  OK (exact match)
+R1-C3  Fig. 6 has complete vs compact config  line 3129-3133  OK
+R1-C4  ABSE Test 2.480 +- 0.045 ms            line 2902       OK (exact match)
+R1-C4  sub-ms and 10^6 qps claims removed     (grep: 0 hits)  OK
+R1-C6  Pi 4 table, 72.67 ms, 376 B            line 2927-2955  OK
+R1-C6  energy/memory explicitly not measured  line 2853-2856  OK
+R1-C7  measured communication added           line 2680-2712  OK
+R1-C8  all figures are .pdf (vector)          Figure1-8.pdf   OK
+R2-C1  adopted-vs-novel paragraph present     line 212-223    OK (verbatim)
+R2-C2  "negligible" removed, +-1 SD added     (grep: 0 hits)  OK
+R2-C3  five-attribute policy + 5 microbench   line 2838, 2893 OK
+R2-C4  large-scale scalability discussion     line 3070-3086  OK
+R2-C5  Table V measured KB, 4 settings        line 2694-2704  OK
+R2-C6  Fig. 8 tied to O(sqrt(Mmax))           line 3218-3222  OK
+R3-C2  invariant pos_i in B_u => P_u => P_i   line 1220-1231  OK
+R3-C3  Cert_Q^dec issued by gateway           line 1385-1400  OK
+R3-C6  leakage: cloud view                    line 1806-1840  OK
+R3-C7  leakage: authorized user view          line 1853-1863  OK
+R3-C8  leakage: gateway view                  line 1842-1851  OK
+R3-C9  gateway-committed state only           line 2420-2430  OK
+R3-C10 revocation limitation stated           line 2434-2443  OK
+R3-C11 v_u versioning, incremental epoch      line 1024-1070  OK
+R3-C12 bitmap storage trade-off stated        line 2445-2449  OK
+R3-C13 measurement scope separated            line 2841-2848  OK
+R3-C14 throughput = N_Q / T_batch             line 3044-3051  OK
+R3-C16 baseline configuration expanded        line 2861-2871  OK
+R3-C17 SD used, no confidence intervals       (grep: 0 hits)  OK
+R4-C2  43,829.80 gas / 124 B / 5.877 s        line 3238-3252  OK (exact match)
+R5-C1  Phase 2 Step 3 self-contained          line 928-985    OK
+R5-C2  measurement boundaries + baselines     line 2802-2817  OK
+R5-C3  Theorem 2 Real/Ideal simulator         line 1916-1980  OK
+R7-C1  K_sel trust assumption in threat model line 540-551    OK
+R7-C2  integrity relative to committed state  line 2418-2430  OK
+R7-C3  append-dominant, invalidate-and-append line 906-922    OK
+R7-C4  comm + blockchain experiments added    line 2680, 3230 OK
+R7-C5  single-node prototype limitation       line 3255-3262  OK
+
+
+================================================================================
+END OF FILE
+================================================================================
