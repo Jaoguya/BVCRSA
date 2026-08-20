@@ -184,6 +184,13 @@ $9 of compute.
 
 ## 7. Decisions still open
 
+> Historical — all 5 of these are resolved now (Trinity fixed to
+> Trinity-II, `_query_fast`/`K_sel` leak documented as known issue not
+> fixed, revocation disclosed as a limitation, Pi kept and real Exp09
+> data collected 2026-08-19/20, Exp11 got a real 3-node consortium).
+> See `MD/HANDOFF.md` for current status, this table is left as-is for
+> historical context on what the original decision points were.
+
 | # | Decision | Blocks |
 |---|---|---|
 | **1** | **Trinity crashes** on index build: `trinity.py:210` `shve.encrypt` → `struct.error: 'I' format requires 0 <= number <= 4294967295`. Pre-existing. Fix it, or drop Trinity from Tables I, IV, V. | Exps 1, 2, 3 comparative figures |

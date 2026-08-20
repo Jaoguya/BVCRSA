@@ -1,5 +1,24 @@
 # Raspberry Pi setup — Experiment 09 (sensor-side cost)
 
+> ✅ **DONE (2026-08-19/20).** Real data collected, in
+> `Overleaf/NeedToEdit.txt` item 8, not yet applied to Overleaf.com (see
+> `MD/HANDOFF.md`'s workflow-rule section). Kept below as reference in
+> case the Pi needs to be re-set-up or re-run.
+>
+> **One detour from the plan below**: the first SD card write (via
+> Raspberry Pi Imager, gear-icon settings skipped by mistake) produced
+> 32-bit Raspberry Pi OS (Raspbian 11, Python 3.9) — no prebuilt
+> BLS12-381 wheel exists for that Python version on any platform. Fixed
+> by writing the correct image directly via `dd` (bypassing the Imager
+> GUI, which had already failed twice) and hand-editing the resulting
+> `system-boot/user-data` cloud-init file to guarantee working headless
+> SSH (username `ubuntu`, password `bvcrsa2026pi`, hostname `bvcrsa-pi`,
+> `ssh_pwauth: true`, `chpasswd.expire: false`) — the Imager GUI's
+> settings step is easy to miss and hard to verify after the fact: the
+> `dd` + hand-edited-cloud-init route is more reliable if this needs
+> doing again. Once booted: Ubuntu Server 24.04.4 LTS, Python 3.12.3,
+> 64-bit, real prebuilt wheel, zero Rust compile — exactly per plan below.
+
 This Pi exists for exactly one purpose: real hardware numbers for Exp09
 (`Benchmark/09_Sensor_Side_Cost`), which answers R1-C6. Nothing else in the
 suite runs here — everything else already ran on AWS (`MD/HANDOFF.md`).

@@ -42,7 +42,18 @@ one reusable asset (`ecgrq_li.py`, the learned index) lives at
 
 ## 2. Execution policy
 
-Three standing rules, all changed from how the earlier results were produced.
+Four standing rules, all changed from how the earlier results were produced.
+
+**Manuscript edits go through `Overleaf/NeedToEdit.txt` only, never
+directly into `Overleaf/BVCRSA`** (rule added 2026-08-20). The local
+`Overleaf/BVCRSA` file is a manually-synced mirror of the user's real
+Overleaf.com project, not a source of truth — direct edits here don't
+reach Overleaf.com automatically, and got overwritten/reverted twice
+(once by a teammate's accidental commit, once by the user re-pasting
+stale Overleaf.com content over local fixes) before this rule existed.
+Every manuscript change now goes into `NeedToEdit.txt`'s "OVERLEAF SYNC
+LIST" as an explicit old-context/new-context block, for the user to
+apply by hand. Full incident writeup in `MD/HANDOFF.md`.
 
 **AWS only.** Every experiment runs on the AWS EC2 instance. No local VM, no
 separate Linux box, no developer laptop. The IP and `key.pem` path live in
@@ -52,10 +63,11 @@ answers R1-C5 and R3-C15 ("provide consistent … hardware settings").
 
 > ⚠️ The manuscript currently describes a heterogeneous three-device setup —
 > Raspberry Pi 4 for sensors, Core i7 laptop for trapdoors, Xeon server for
-> indexing. Under AWS-only execution that text is false and must be rewritten.
-> The one exception is Experiment 9 (sensor-side cost), which **R1-C6 explicitly
-> demands be measured on a Raspberry Pi**. Either keep one Pi for that single
-> experiment or drop the claim.
+> indexing. Under AWS-only execution that text is false and must be rewritten
+> (fix text ready in `NeedToEdit.txt` item 5). Experiment 9 (sensor-side
+> cost) is the one real exception to AWS-only, since **R1-C6 explicitly
+> demands a Raspberry Pi** — resolved 2026-08-19/20, kept a real Pi 4,
+> real data collected (see §10). Not a decision anymore, just execution.
 
 **No MongoDB.** The database is gone. `Datarecord.csv` is the record store and
 every result is written to `CSV/`. The old harness carried a hardcoded MongoDB
@@ -162,7 +174,7 @@ answer (§11 A3, A4, B3).
 | # | Experiment | Measures | Source | Needs |
 |---|---|---|---|---|
 | 08 | **Communication Cost** | Actual KB for request, response 1, response 2, at representative `N` and \|R_Q\| | R1-C7, R2-C5 | — |
-| 09 | **Sensor-Side Cost** | ABSE encapsulation + EC-ElGamal + AES-GCM + HMAC: time, energy, memory, ciphertext expansion | R1-C6 | a Raspberry Pi + a power meter reading |
+| 09 | **Sensor-Side Cost** | KDF + AES-GCM + HMAC + ABSE encapsulation + EC-ElGamal: latency, ciphertext expansion | R1-C6 | ✅ done — real Pi 4 data, see §10. Energy/peak-memory measured but dropped from the reported table per co-author (IEEE reviewer) preference for crypto-ops-only focus |
 | 10 | **Per-Primitive Microbench** | Single pairing, `ABSE.Test`, Merkle verify, bitmap AND over 100k bits, threshold decrypt | R2-C3 | — |
 | 11 | **Blockchain Cost** | Gas per anchor, ledger growth, finality, multi-node sync latency, variable epoch frequency | R7-5, R4-2 | 3+ node consortium + `pip install web3` |
 
@@ -558,7 +570,7 @@ Merkle proofs verified, decrypted SUM/CNT match expected plaintext.
 | 06 Aggregation Strategy | ✅ unaffected by this pass — one row per arm |
 | 07 Aggregate-Recovery BSGS | ✅ unaffected by this pass |
 | 08 Communication Cost | ✅ unaffected by this pass — real wire sizes, now cited in Table V |
-| 09 Sensor-Side Cost | ⏸ needs the Pi for R1-C6 |
+| 09 Sensor-Side Cost | ✅ **Real Raspberry Pi 4 data, 2026-08-19/20** — Pi was reflashed to Ubuntu Server 24.04.4 64-bit (original SD card had 32-bit Raspbian, no BLS12-381 wheel for Python 3.9). RUNS=20 (matches paper default; earlier RUNS=50 run superseded per request), no Peak Mem column (co-author/IEEE-reviewer preference, crypto-ops focus only), 4 decimal places. Total 72.6695ms/record, 98.8% public-key-dominated, 11.8x ciphertext expansion. Real bug fixed: `abse.encrypt()` was missing a required `policy` arg. Numbers are in `Overleaf/NeedToEdit.txt` item 8 — **not yet applied to Overleaf.com**, see `MD/HANDOFF.md`'s workflow-rule section for why manuscript edits no longer happen directly. |
 | 10 Primitive Microbench | ✅ re-run 2026-08-18, Table A/B both fully populated, no gaps |
 | 11 Blockchain Cost | ✅ **Real 3-node AWS consortium, 2026-08-18** — Clique PoA, real gas/anchor/finality/cross-node-sync measured. Fixed 3 real bugs to get it running (`contract_address` key mismatch, `anchorEpoch`→`anchorEpochRoot` signature, missing POA middleware on the experiment's own Web3 connections). **Not complete per the original config**: only `node_count=3` was run — the `{1,5}` comparison points specified in `config.md` were never tested. Table VII and Fig. `blockchain_cost` in the manuscript are filled with this data. |
 
